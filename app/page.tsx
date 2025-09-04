@@ -3,6 +3,7 @@
 import React from 'react'
 import Header from '../components/common/Header'
 import StyleTokens from '../components/common/StyleTokens'
+import { InterruptedSessionBanner } from '../components/mix/InterruptedSessionBanner'
 
 // =============================================
 // Tokens / Utilities
@@ -20,6 +21,12 @@ export default function MIXAIHomePreview() {
       <StyleTokens />
       <Header currentPage="home" />
       <Hero />
+      
+      {/* セッション復旧通知 */}
+      <div className="mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-4">
+        <InterruptedSessionBanner />
+      </div>
+      
       <Demo />
       <Teasers />
       <Upload />

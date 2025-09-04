@@ -3,6 +3,9 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import Header from '../../components/common/Header';
+import StyleTokens from '../../components/common/StyleTokens';
+import Footer from '../../components/common/Footer';
 
 type Meta = { inst?:{name:string;durationSec:number}; vox?:{name:string;durationSec:number}; startedAt?:number };
 
@@ -40,8 +43,16 @@ export default function ProcessingPage(){
   },[meta?.startedAt]);
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen text-gray-900 bg-[var(--bg)]">
+      <StyleTokens />
+      <Header currentPage="processing" />
+      
       <section className="mx-auto max-w-3xl px-4 py-12">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold">AI音声処理中</h1>
+          <p className="mt-2 text-gray-600">高品質なMIXを作成しています</p>
+        </div>
+        
         <div className="card p-6">
           <div className="grid grid-cols-[auto,1fr] items-start gap-6">
             <div className="kicker text-slate-700 text-sm">
@@ -80,6 +91,8 @@ export default function ProcessingPage(){
           </div>
         </div>
       </section>
+      
+      <Footer />
     </main>
   );
 }
