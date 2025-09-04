@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design System Variables - Hybrid UI (洗練さ + 実務性) */
+:root {
+  --primary: #4f46e5;      /* indigo-600: メインアクション */
+  --primary-hover: #4338ca; /* indigo-700: hover */
+  --secondary: #64748b;    /* slate-500: セカンダリテキスト */
+  --border: #e2e8f0;       /* slate-200: ボーダー */
+  --background: #f8fafc;   /* slate-50: 背景 */
+  --surface: #ffffff;      /* 白: カード背景 */
+  --error: #dc2626;        /* red-600: エラー */
+  --success: #059669;      /* emerald-600: 成功 */
+  --ring: #6366f1;         /* focus ring */
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06); /* subtle shadow */
+}
+
+.font-sans { 
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif; 
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  * { -webkit-tap-highlight-color: transparent; }
+  img, svg, video, canvas, audio { display: block; max-width: 100%; height: auto; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+}
+
+@layer components {
+  /* Card System */
+  .card { 
+    @apply rounded-lg border bg-white shadow-[var(--shadow)];
+    border-color: var(--border);
+  }
+  .card-subtle { @apply rounded-lg border border-slate-100 bg-white; }
+  
+  /* Button System */
+  .btn-primary { 
+    @apply inline-flex h-11 items-center justify-center rounded-md px-5 text-sm font-medium text-white shadow-sm transition-all;
+    background-color: var(--primary);
+  }
+  .btn-primary:hover:not(:disabled) { 
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+  }
+  .btn-primary:disabled { 
+    @apply opacity-50 cursor-not-allowed;
+    transform: none;
+  }
+  
+  .btn-secondary { 
+    @apply inline-flex h-11 items-center justify-center rounded-md border px-5 text-sm font-medium transition-all;
+    border-color: var(--border);
+    background-color: var(--surface);
+    color: var(--secondary);
+  }
+  .btn-secondary:hover:not(:disabled) { 
+    background-color: var(--background);
+    border-color: var(--primary);
+  }
+  
+  .btn-ghost { 
+    @apply inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm transition-all;
+    border-color: var(--border);
+    background-color: var(--surface);
+  }
+  .btn-ghost:hover:not(:disabled) { 
+    background-color: var(--background);
+  }
+  
+  /* Form System */
+  .form-input {
+    @apply w-full rounded-md border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2;
+    border-color: var(--border);
+    background-color: var(--surface);
+  }
+  .form-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+  
+  /* Upload Slot */
+  .upload-slot { 
+    @apply cursor-pointer rounded-lg border border-dashed p-6 text-center transition-all;
+    border-color: var(--border);
+    background-color: var(--surface);
+  }
+  .upload-slot:hover { 
+    border-color: var(--primary);
+    background-color: var(--background);
+  }
+  .upload-slot.has-file {
+    @apply border-solid;
+    border-color: var(--primary);
+    background-color: rgba(79, 70, 229, 0.05);
+  }
+  
+  /* Layout System */
+  .section-title { 
+    @apply text-2xl md:text-3xl font-semibold tracking-tight;
+  }
+  .page-container { 
+    @apply mx-auto max-w-4xl px-4 sm:px-6 lg:px-8;
+  }
+  .form-container { 
+    @apply mx-auto max-w-2xl px-4 sm:px-6;
+  }
+  
+  /* Status System */
+  .status-error { 
+    @apply rounded-md border px-3 py-2 text-sm;
+    background-color: #fef2f2;
+    border-color: #fecaca;
+    color: var(--error);
+  }
+  .status-success { 
+    @apply rounded-md border px-3 py-2 text-sm;
+    background-color: #ecfdf5;
+    border-color: #a7f3d0;
+    color: var(--success);
+  }
+  .status-info { 
+    @apply rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700;
+  }
+}

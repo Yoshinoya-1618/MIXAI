@@ -1,0 +1,12 @@
+// Test environment variables
+process.env.NODE_ENV = 'test'
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+process.env.MAX_DURATION_SEC = '60'
+process.env.MAX_FILE_MB = '20'
+process.env.SIGNED_URL_TTL_SEC = '300'
+process.env.RETENTION_DAYS = '7'
+process.env.PRICE_JPY = '150'
+process.env.PAYMENT_PROVIDER = 'mock'
+process.env.PAYMENT_SECRET = 'test-secret'
