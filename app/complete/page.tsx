@@ -2,6 +2,9 @@
 'use client';
 
 import * as React from 'react';
+import Header from '../../components/common/Header';
+import StyleTokens from '../../components/common/StyleTokens';
+import Footer from '../../components/common/Footer';
 
 export default function CompletePage(){
   const price = typeof window!=='undefined' ? (localStorage.getItem('utaseion:lastPrice') ?? '500') : '500';
@@ -11,8 +14,16 @@ export default function CompletePage(){
   },[]);
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen text-gray-900 bg-[var(--bg)]">
+      <StyleTokens />
+      <Header currentPage="complete" />
+      
       <section className="mx-auto max-w-3xl px-4 py-12">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold">処理完了</h1>
+          <p className="mt-2 text-gray-600">音声の処理が正常に完了しました</p>
+        </div>
+        
         <div className="card p-6">
           <div className="mx-auto grid max-w-xl place-items-center text-center">
             <div className="mb-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -52,6 +63,8 @@ export default function CompletePage(){
           </p>
         </div>
       </section>
+      
+      <Footer />
     </main>
   );
 }

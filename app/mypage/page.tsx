@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../web/api'
 import { AuthGuard } from '../../components/AuthGuard'
+import { InterruptedSessionBanner } from '../../components/mix/InterruptedSessionBanner'
 
 const COLORS = {
   indigo: '#6366F1',
@@ -52,6 +53,9 @@ export default function MyPage() {
               アップロードしたファイルと処理結果を管理
             </p>
           </div>
+
+          {/* 中断セッション通知 */}
+          <InterruptedSessionBanner />
 
           {loading ? (
             <div className="glass-card p-8 text-center">

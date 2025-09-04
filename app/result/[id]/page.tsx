@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { apiFetch } from '../../web/api'
+import Header from '../../../components/common/Header'
+import StyleTokens from '../../../components/common/StyleTokens'
+import Footer from '../../../components/common/Footer'
 
 interface Props { params: { id: string } }
 
@@ -65,7 +68,7 @@ export default function ResultPage({ params }: Props) {
       <main className="min-h-screen bg-[var(--bg)] text-gray-900">
         <StyleTokens />
         <AuroraBackground />
-        <Header />
+        <Header currentPage="result" />
         
         <div className="relative mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-16">
           <div className="glass-card p-8 text-center">
@@ -75,6 +78,7 @@ export default function ResultPage({ params }: Props) {
             <p className="mt-2 text-gray-600">処理結果を取得中...</p>
           </div>
         </div>
+        <Footer />
       </main>
     )
   }
@@ -88,7 +92,7 @@ export default function ResultPage({ params }: Props) {
       <AuroraBackground />
       
       {/* Header */}
-      <Header />
+      <Header currentPage="result" />
       
       <div className="relative mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-16">
         <div className="space-y-8">
@@ -249,6 +253,8 @@ export default function ResultPage({ params }: Props) {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </main>
   )
 }
@@ -298,33 +304,6 @@ function AuroraBackground() {
   )
 }
 
-function Header() {
-  return (
-    <header className="relative border-b border-white/10 bg-white/40 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">M</span>
-              </div>
-              <span className="font-bold text-xl text-gray-900">MIXAI</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
-              ログイン
-            </button>
-            <button className="btn-primary px-6 py-2 text-sm">
-              無料で始める
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-  )
-}
 
 // =========================================
 // Icons
