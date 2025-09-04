@@ -1,10 +1,11 @@
-# MIXAI - 歌声が、主役になる
+# 🎵 MIXAI v1.4 - うた整音
 
-[![Build Status](https://github.com/mixai/mixai/workflows/CI/badge.svg)](https://github.com/mixai/mixai/actions)
-[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/)
-[![Next.js](https://img.shields.io/badge/next.js-%23000000.svg?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![GitHub Actions](https://github.com/mixai/mixai/workflows/Deploy%20to%20Production/badge.svg)](https://github.com/mixai/mixai/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
+[![Python Version](https://img.shields.io/badge/python-%3E%3D3.13-blue)](https://python.org/)
 
-歌い手向けオンラインMIXサービス。伴奏と歌声をアップロードするだけで、AI技術によりピッチとタイミングを自然に補正。YouTube・TikTok等のショート動画にも最適。
+**歌声が、主役になる。** AI音声処理で自然な仕上がりを実現するオンラインMIXサービス
 
 ## ✨ 主な機能
 
