@@ -2,6 +2,7 @@ import { execa } from 'execa'
 import ffmpegStatic from 'ffmpeg-static'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { createClient } from '@supabase/supabase-js'
 
 const ffmpegPath = ffmpegStatic
 if (!ffmpegPath) {

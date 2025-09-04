@@ -1,0 +1,185 @@
+# MIXAI v1.4 Prometheus Alert Rules
+groups:
+  - name: mixai_application
+    rules:
+      # Application Health
+      - alert: MixaiAppDown
+        expr: up{job="mixai-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MIXAI application is down"
+          description: "MIXAI application has been down for more than 1 minute."
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second."
+
+      # High Response Time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }} seconds."
+
+  - name: mixai_audio_processing
+    rules:
+      # Audio Processing Queue Backlog
+      - alert: AudioProcessingBacklog
+        expr: mixai_audio_processing_queue_size > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Audio processing backlog detected"
+          description: "{{ $value }} jobs in audio processing queue."
+
+      # Audio Processing Failures
+      - alert: AudioProcessingFailures
+        expr: rate(mixai_audio_processing_failures_total[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High audio processing failure rate"
+          description: "Audio processing failure rate: {{ $value }} failures per second."
+
+      # Long Processing Time
+      - alert: LongAudioProcessingTime
+        expr: mixai_audio_processing_duration_seconds > 300
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Audio processing taking too long"
+          description: "Audio processing has been running for {{ $value }} seconds."
+
+  - name: mixai_harmony
+    rules:
+      # Harmony Processing Failures
+      - alert: HarmonyProcessingFailures
+        expr: rate(mixai_harmony_processing_failures_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High harmony processing failure rate"
+          description: "Harmony processing failure rate: {{ $value }} failures per second."
+
+      # Harmony Credit Issues
+      - alert: HarmonyCreditErrors
+        expr: rate(mixai_harmony_credit_errors_total[10m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Harmony credit errors detected"
+          description: "Harmony credit error rate: {{ $value }} errors per second."
+
+  - name: mixai_payments
+    rules:
+      # Payment Processing Failures
+      - alert: PaymentProcessingFailures
+        expr: rate(mixai_payment_failures_total[10m]) > 0.02
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment processing failures detected"
+          description: "Payment failure rate: {{ $value }} failures per second."
+
+      # Webhook Failures
+      - alert: StripeWebhookFailures
+        expr: rate(mixai_stripe_webhook_failures_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Stripe webhook failures detected"
+          description: "Stripe webhook failure rate: {{ $value }} failures per second."
+
+  - name: mixai_database
+    rules:
+      # Database Connection Issues
+      - alert: DatabaseConnectionFailures
+        expr: rate(mixai_database_connection_failures_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection failures"
+          description: "Database connection failure rate: {{ $value }} failures per second."
+
+      # High Database Query Time
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, rate(mixai_database_query_duration_seconds_bucket[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile database query time: {{ $value }} seconds."
+
+  - name: system_resources
+    rules:
+      # High CPU Usage
+      - alert: HighCpuUsage
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80%: {{ $value }}%"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 85%: {{ $value }}%"
+
+      # Disk Space Low
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is above 85%: {{ $value }}%"
+
+  - name: redis_monitoring
+    rules:
+      # Redis Down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance has been down for more than 1 minute."
+
+      # High Redis Memory Usage
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is above 90%: {{ $value }}%"

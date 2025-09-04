@@ -1,0 +1,128 @@
+# MIXAI v1.4 CI/CD Pipeline
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.13'
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        pip install -r worker/requirements.txt
+        
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Run type checking
+      run: npx tsc --noEmit
+      
+    - name: Test Python audio processing
+      run: |
+        cd worker
+        python -c "import librosa, numpy, scipy, soundfile; print('Audio dependencies OK')"
+        
+    - name: Build application
+      run: npm run build
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run security audit
+      run: npm audit --audit-level=moderate
+      
+    - name: Scan for secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ secrets.CONTAINER_REGISTRY }}
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.CONTAINER_REGISTRY }}/mixai:latest
+          ${{ secrets.CONTAINER_REGISTRY }}/mixai:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your deployment commands here
+        # Example: kubectl, helm, or cloud provider CLI commands
+
+  notify:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    
+    steps:
+    - name: Notify success
+      if: needs.deploy.result == 'success'
+      run: |
+        echo "✅ MIXAI v1.4 deployed successfully!"
+        # Add notification logic (Slack, Discord, email, etc.)
+        
+    - name: Notify failure
+      if: needs.deploy.result == 'failure'
+      run: |
+        echo "❌ MIXAI v1.4 deployment failed!"
+        # Add error notification logic

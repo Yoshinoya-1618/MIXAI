@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 
 interface HeaderProps {
   currentPage?: string
@@ -10,16 +11,25 @@ export default function Header({ currentPage }: HeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
-    // ログイン状態をチェック（実際の実装ではAPIやトークンをチェック）
-    const checkLoginStatus = () => {
-      const token = localStorage.getItem('auth_token')
-      setIsLoggedIn(!!token)
+    const checkLoginStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsLoggedIn(!!session)
     }
+    
     checkLoginStatus()
-  }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem('auth_token')
+    // セッション変更を監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setIsLoggedIn(!!session)
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     window.location.href = '/'
   }
 
@@ -37,13 +47,14 @@ export default function Header({ currentPage }: HeaderProps) {
         <div className="hidden sm:flex items-center gap-3">
           {isLoggedIn ? (
             <>
-              <NavLink href="/dashboard">ダッシュボード</NavLink>
+              <NavLink href="/mypage" current={currentPage === 'mypage'}>マイページ</NavLink>
+              <NavLink href="/subscriptions" current={currentPage === 'subscriptions'}>プラン</NavLink>
               <button className="btn-ghost" onClick={handleLogout}>ログアウト</button>
             </>
           ) : (
             <>
               <NavLink href="/auth/login">ログイン</NavLink>
-              <button className="btn-primary" onClick={() => window.location.href = '/'}>無料で試す</button>
+              <button className="btn-primary" onClick={() => window.location.href = '/upload'}>無料で試す</button>
             </>
           )}
         </div>

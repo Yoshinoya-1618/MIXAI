@@ -13,6 +13,7 @@ export default function HelpPage() {
       <Hero />
       <HowItWorks />
       <SupportedFormats />
+      <FAQ />
       <Footer />
     </main>
   )
@@ -160,6 +161,77 @@ function SupportedFormats() {
   )
 }
 
+function FAQ() {
+  const faqs = [
+    {
+      question: "どのような音楽ファイルに対応していますか？",
+      answer: "WAV・MP3形式に対応しています。最大20MB、60秒以内のファイルをお使いください。44.1kHzまたは48kHzのサンプルレートを推奨します。"
+    },
+    {
+      question: "処理にはどのくらい時間がかかりますか？",
+      answer: "通常1〜2分程度で完了します。ファイルサイズや選択したプリセットによって多少前後する場合があります。"
+    },
+    {
+      question: "ハモリの自動生成はどのような仕組みですか？",
+      answer: "AIが主旋律を解析し、上3度・下3度・完全5度のハーモニーを自動生成します。プレビューで聞き比べて、お好みのハモリを選択できます。"
+    },
+    {
+      question: "プランの違いを教えてください",
+      answer: "Liteは基本プリセット3種、Standardは7種＋微調整、Creatorは12種＋高精度微調整が利用できます。テンポ補正やピッチ補正の精度も異なります。"
+    },
+    {
+      question: "ファイルはいつまで保存されますか？",
+      answer: "Liteは7日間、Standardは30日間、Creatorは90日間保存されます。期間を過ぎると自動的に削除されます。"
+    },
+    {
+      question: "商用利用は可能ですか？",
+      answer: "はい、すべてのプランで商用利用が可能です。ただし、権利侵害のない楽曲のみご利用ください。"
+    },
+    {
+      question: "返金はできますか？",
+      answer: "処理に失敗した場合や技術的な問題が発生した場合は返金いたします。処理が成功した場合の返金はお受けできません。"
+    },
+    {
+      question: "ファイルのセキュリティは大丈夫ですか？",
+      answer: "すべてのファイルは非公開で保存され、あなた以外はアクセスできません。期間経過後は自動削除され、外部共有は一切行いません。"
+    }
+  ]
+
+  return (
+    <section id="faq" className="py-16">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <h2 className="text-2xl font-semibold text-center mb-12">よくある質問</h2>
+        <div className="space-y-6">
+          {faqs.map((faq, index) => (
+            <FAQItem key={index} question={faq.question} answer={faq.answer} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FAQItem({ question, answer }: { question: string; answer: string }) {
+  const [isOpen, setIsOpen] = React.useState(false)
+
+  return (
+    <div className="card">
+      <button
+        className="w-full p-6 text-left flex items-center justify-between"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="font-semibold text-gray-900">{question}</span>
+        <IconChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="px-6 pb-6">
+          <p className="text-gray-700 leading-relaxed">{answer}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 function Footer() {
   return (
@@ -227,6 +299,25 @@ function IconCheck(props: any) {
     <svg {...props} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <polyline points="20 6 9 17 4 12" />
     </svg>
+  )
+}
+
+function IconChevronDown(props: any) {
+  return (
+    <svg {...props} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+function Logo() {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-6 w-6 rounded-full grid place-items-center bg-gradient-to-br from-[var(--brand)] via-[var(--brandAlt)] to-[var(--accent)]">
+        <IconMic className="w-3.5 h-3.5 text-white" />
+      </div>
+      <span className="font-semibold">MIXAI</span>
+    </div>
   )
 }
 
