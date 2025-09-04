@@ -1,0 +1,31 @@
+-- Edge Functionのcronスケジュール設定
+-- 毎日午前3時（JST）に実行
+
+-- pg_cron拡張を有効化（Supabaseでは自動で有効）
+-- SELECT cron.schedule(
+--   'cleanup-expired-files',
+--   '0 3 * * *',  -- 毎日3:00 JST
+--   'SELECT net.http_post(
+--     url:=''https://galohsnyjzobnrovztch.supabase.co/functions/v1/cleanup-expired'',
+--     headers:=''{"Content-Type": "application/json", "Authorization": "Bearer " || current_setting(''app.settings.service_role_key'')}'',
+--     body:=''{}''::jsonb
+--   );'
+-- );
+
+-- Supabase Dashboardでの設定方法：
+-- 1. Database → Cron Jobs → New Cron Job
+-- 2. Name: cleanup-expired-files
+-- 3. Cron Expression: 0 3 * * *
+-- 4. Command: SELECT extensions.http_post(
+--      url := 'https://galohsnyjzobnrovztch.supabase.co/functions/v1/cleanup-expired',
+--      headers := '{"Authorization": "Bearer ' || current_setting('app.settings.service_role_key') || '"}',
+--      body := '{}'
+--    );
+-- 5. Database: postgres（デフォルト）
+
+-- 手動実行テスト用のSQL（開発時のみ）
+-- SELECT extensions.http_post(
+--   url := 'https://galohsnyjzobnrovztch.supabase.co/functions/v1/cleanup-expired',
+--   headers := '{"Authorization": "Bearer ' || current_setting('app.settings.service_role_key') || '"}',
+--   body := '{}'
+-- );

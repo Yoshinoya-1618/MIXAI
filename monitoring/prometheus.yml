@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'mixai-monitor'
+
+rule_files: []
+
+scrape_configs:
+  # MIXAI アプリケーション
+  - job_name: 'mixai-app'
+    static_configs:
+      - targets: ['app:3000']
+    scrape_interval: 15s
+    metrics_path: '/api/metrics'
+    scrape_timeout: 10s
+
+  # システムメトリクス
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node_exporter:9100']
+    scrape_interval: 15s
+
+  # Redis監視
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+  # Docker監視
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['172.17.0.1:9323']
+    scrape_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# アラートルール（基本的なもの）
+rule_files:
+  - "alert_rules.yml"

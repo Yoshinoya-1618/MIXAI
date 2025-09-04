@@ -1,0 +1,170 @@
+openapi: 3.0.3
+info:
+  title: Uta Seion API
+  version: 0.1.0
+  description: Next.js Route Handlers + Supabase (MVP) API
+servers:
+  - url: http://localhost:3000/api
+paths:
+  /v1/jobs:
+    post:
+      summary: Create job
+      operationId: createJob
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/jobs/{id}:
+    get:
+      summary: Get job
+      operationId: getJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/jobs/{id}/files:
+    patch:
+      summary: Confirm upload paths
+      operationId: patchJobFiles
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/jobs/{id}/pay:
+    post:
+      summary: Capture payment
+      operationId: payJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        '200': { description: OK }
+        '402': { description: Payment Required }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/jobs/{id}/render:
+    post:
+      summary: Start processing
+      operationId: renderJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        '202': { description: Accepted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/jobs/{id}/download:
+    get:
+      summary: Get signed download URL
+      operationId: getDownloadUrl
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+        - in: query
+          name: format
+          schema: { type: string, enum: [mp3, wav] }
+          required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/webhooks/payment:
+    post:
+      summary: Payment webhook
+      operationId: paymentWebhook
+      security: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Job:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        status: { type: string, enum: [uploaded, paid, processing, done, failed] }
+        instrumental_path: { type: string, nullable: true }
+        vocal_path: { type: string, nullable: true }
+        result_path: { type: string, nullable: true }
+        offset_ms: { type: integer, nullable: true }
+        atempo: { type: number, nullable: true }
+        target_lufs: { type: number }
+        true_peak: { type: number, nullable: true }
+        error: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
