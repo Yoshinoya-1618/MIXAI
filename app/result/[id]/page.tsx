@@ -263,34 +263,6 @@ export default function ResultPage({ params }: Props) {
 // Shared Components
 // =========================================
 
-function StyleTokens() {
-  return (
-    <style jsx>{`
-      :root {
-        --bg: ${COLORS.bg};
-        --indigo: ${COLORS.indigo};
-        --blue: ${COLORS.blue};
-        --magenta: ${COLORS.magenta};
-      }
-      
-      .glass-card {
-        @apply bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg rounded-2xl;
-      }
-      
-      .btn-primary {
-        @apply font-semibold rounded-xl text-white;
-        background: linear-gradient(135deg, var(--indigo) 0%, var(--blue) 100%);
-        transition: all 0.3s ease;
-      }
-      
-      .btn-primary:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 20px 40px -12px rgba(99, 102, 241, 0.4);
-      }
-    `}</style>
-  )
-}
-
 function AuroraBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
