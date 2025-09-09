@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { scheduleTrainingJobs } from '../../../../worker/training'
 
+export const dynamic = 'force-dynamic'
+
 // Vercel Cronジョブ用エンドポイント
 export async function GET(request: NextRequest) {
   try {

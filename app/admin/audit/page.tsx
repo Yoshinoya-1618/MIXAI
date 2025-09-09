@@ -3,6 +3,8 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import AuditLogTable from '../../../components/admin/AuditLogTable'
 import { Shield, Activity, AlertTriangle, Clock } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AuditLogsPage() {
   const supabase = createServerComponentClient({ cookies })
   
