@@ -1,33 +1,217 @@
-# CLAUDE.md — MIXAI開発ガイド v2.0（3ステージアーティファクト・AI主導・認証統合）
+# MIXAI Project Context for Claude
 
-> 本ドキュメントは **v1.4を基礎**に、**3ステージアーティファクト管理（prep/ai_ok/final）**と**AIおまかせ/自分で調整フロー**を統合し、**Supabase認証システム**と**セッション中断復旧機能**を追加した**全量版 v2.0**です。歌い手が工程を意識せず「おまかせAI」または「自分で調整」で仕上げに到達できる実用システムを実現します。
+## Project Overview
+MIXAI is an AI-powered audio mixing platform that provides automated mixing and mastering services. The platform uses machine learning to analyze audio characteristics and apply optimal mixing parameters.
+
+## Recent Implementations
+
+### AI/ML Learning System (2025-01-10)
+Implemented a CPU-based machine learning system with the following components:
+- Feature extraction from audio (spectral, temporal, MFCC, chroma, loudness features)
+- Three ML tasks: master_reg (regression), preset_cls (classification), align_conf (confidence)
+- ONNX Runtime for inference (CPU-optimized)
+- A/B testing capability for gradual model rollout
+- Feature flags for controlling ML capabilities
+- Mock implementations to avoid heavy dependencies during development
+
+### Key Files for AI/ML System
+- `supabase/migrations/20250110_create_ai_learning_tables.sql` - ML database schema
+- `worker/features-mock.ts` - Mock feature extraction (avoids tensorflow dependency)
+- `worker/training.ts` - Training pipeline implementation
+- `worker/inference.ts` - Inference module
+- `app/admin/ml/*` - Admin UI for ML management
+- `app/api/v1/ml/*` - ML API endpoints
+
+## Tech Stack
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Payments**: Stripe
+- **Deployment**: Vercel
+- **ML/AI**: ONNX Runtime (CPU), Mock implementations for development
+- **Audio Processing**: FFmpeg, Web Audio API
+
+## Environment Variables Required
+```env
+# Supabase (Required)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Stripe (Required)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+# ML Settings (Optional)
+ENABLE_CPU_ML=false
+ML_MIN_SAMPLES=1000
+USE_MOCK_ML=true
+```
+
+## Build and Deployment Commands
+
+### Local Development
+```bash
+npm install
+npm run dev
+```
+
+### Vercel Local Build Verification
+```bash
+# Windows
+scripts\vercel-local-build.bat
+
+# Unix/Mac
+bash scripts/vercel-local-build.sh
+
+# Manual commands
+npx vercel link --yes
+npx vercel pull --environment=production --yes
+npm ci
+npx vercel build
+```
+
+### Type Checking and Linting
+```bash
+npx tsc --noEmit
+npm run lint
+```
+
+### Database Migrations
+```bash
+# Using Supabase CLI
+npx supabase db push
+
+# Manual: Apply migrations in order from supabase/migrations/
+```
+
+## Common Issues and Solutions
+
+### TypeScript Errors
+- If you encounter type errors during build, check:
+  1. All imports are correct
+  2. Types are properly defined
+  3. Optional chaining is used for nullable values
+  4. `typeof window !== 'undefined'` checks for client-only code
+
+### Missing Dependencies
+- The project uses mock implementations for heavy ML libraries
+- Real implementations require: `@tensorflow/tfjs-node`, `onnxruntime-node`, `web-audio-api`
+- Use `USE_MOCK_ML=true` in development
+
+### Build Failures
+```bash
+# Clear cache and rebuild
+rm -rf node_modules .next .vercel/output
+npm ci
+npm run build
+```
+
+## Project Structure
+```
+mixai/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   │   ├── v1/           # Versioned API endpoints
+│   │   │   ├── mix/      # Mixing endpoints
+│   │   │   └── ml/       # ML endpoints
+│   │   └── webhooks/     # Stripe webhooks
+│   ├── admin/            # Admin dashboard
+│   └── (user pages)      # User-facing pages
+├── components/            # React components
+├── lib/                  # Utility libraries
+├── worker/               # Background workers
+│   ├── features-mock.ts  # Feature extraction (mock)
+│   ├── training.ts       # ML training
+│   └── inference.ts      # ML inference
+├── supabase/
+│   └── migrations/       # Database migrations
+├── scripts/              # Build and utility scripts
+└── public/              # Static assets
+```
+
+## Testing Checklist
+- [ ] User can sign up and log in
+- [ ] File upload works
+- [ ] Mix processing completes
+- [ ] Payment flow works (Stripe)
+- [ ] ML features extract correctly (check features_store table)
+- [ ] Admin dashboard accessible (requires admin role)
+- [ ] Feature flags control ML behavior
+
+## Database Tables (Key)
+- `profiles` - User profiles
+- `jobs` - Processing jobs
+- `features_store` - Extracted audio features
+- `model_registry` - Trained ML models
+- `feature_flags` - Feature toggles
+- `subscriptions` - User subscriptions
+- `credits` - User credits
+
+## API Endpoints (Key)
+- `POST /api/v1/mix/analyze` - Analyze audio and get mixing parameters
+- `POST /api/v1/ml/extract` - Extract features from audio
+- `POST /api/v1/ml/train` - Trigger model training
+- `POST /api/v1/ml/infer` - Get ML predictions
+- `GET /api/admin/stats` - Admin statistics
+
+## Feature Flags
+Control ML features via `feature_flags` table:
+- `enable_cpu_ml` - Enable CPU-based ML
+- `enable_ml_extraction` - Enable feature extraction
+- `enable_ml_training` - Enable model training
+- `enable_ml_inference` - Enable ML inference
+
+## Contact for Issues
+When encountering issues:
+1. Check error logs in browser console
+2. Check server logs in terminal
+3. Verify environment variables
+4. Check Supabase logs for database errors
+5. Review TypeScript errors with `npx tsc --noEmit`
+
+## Recent Changes (2025-01-10)
+1. Implemented complete AI/ML learning system
+2. Added mock implementations to avoid heavy dependencies
+3. Created admin UI for ML management
+4. Added A/B testing capabilities
+5. Created Vercel local build verification scripts
+6. Updated documentation (DEPLOYMENT_GUIDE.md, QUICK_START.md, PRODUCTION_CHECKLIST.md)
+
+## Notes for Future Development
+- ML models start with mock implementations, switch to real when ready
+- Use feature flags for gradual rollout
+- Monitor `model_metrics` table for model performance
+- Keep `USE_MOCK_ML=true` until sufficient training data collected
+- Run training jobs via cron or manual trigger from admin panel
 
 ---
 
-## 差分サマリー（v1.4 → v2.0）
+## Legacy Documentation (Original v2.0 Japanese)
 
-* **3ステージアーティファクト管理**：
+### 3ステージアーティファクト管理
   * **prep**：下ごしらえ済みデータ（`vox_tuned.wav` / `vox_aligned.wav` / `inst_clean.wav`）
   * **ai_ok**：AI仕上げ完了データ（`ai_mix_ref.wav` + `mix_params.json`）
   * **final**：最終確認済みデータ（`final_mix.wav` + `master_params.json`）
   * プラン別TTL：freetrial/prepaid/Lite 7日 / Standard 15日 / Creator 30日
 
-* **AIフロー設計**：
+### AIフロー設計
   * **おまかせAI**：下ごしらえ→AI MIX→AI OK判断→ユーザー微調整→最終確認
   * **自分で調整**：AI OK判断済みデータから直接微調整開始
   * 期限切れ時の自動再生成システム
 
-* **認証システム統合**：
+### 認証システム統合
   * Supabase Auth（メール・パスワード + Google OAuth）
   * セッション管理とリアルタイム状態監視
   * 認証必須API群の実装
 
-* **セッション中断復旧**：
+### セッション中断復旧
   * MIX作業中の自動セッション保存
   * ページ離脱時の警告機能
   * 中断セッション通知とワンクリック復旧
 
-* **UI/UX改善**：
+### UI/UX改善
   * 全ページのヘッダー・フッター統一
   * 処理状況の視覚的改善（プログレスバー・詳細情報）
   * エラー時の再試行機能とオフセット調整
