@@ -8,6 +8,8 @@ import Header from '../../components/common/Header'
 import Footer from '../../components/common/Footer'
 
 const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_MB || process.env.MAX_FILE_MB || 20)
+const MAX_DURATION_INST = 300 // instは5分（300秒）まで
+const MAX_DURATION_VOCAL = 60 // ボーカルは60秒まで
 const ACCEPT = '.wav,.mp3,audio/wav,audio/mpeg'
 
 // =========================================
@@ -24,12 +26,44 @@ function clsx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(' ')
 }
 
-function validateFile(f: File): string | null {
-  const mb = f.size / (1024 * 1024)
-  if (mb > MAX_MB) return `サイズ超過: ${mb.toFixed(1)}MB（最大 ${MAX_MB}MB）`
-  const extOk = /\.(wav|mp3)$/i.test(f.name)
-  if (!extOk) return '拡張子は WAV/MP3 のみ'
-  return null
+function validateFile(f: File, fileType: 'inst' | 'vocal' | 'harmony'): Promise<string | null> {
+  return new Promise((resolve) => {
+    const mb = f.size / (1024 * 1024)
+    if (mb > MAX_MB) {
+      resolve(`サイズ超過: ${mb.toFixed(1)}MB（最大 ${MAX_MB}MB）`)
+      return
+    }
+    
+    const extOk = /\.(wav|mp3)$/i.test(f.name)
+    if (!extOk) {
+      resolve('拡張子は WAV/MP3 のみ')
+      return
+    }
+    
+    // オーディオの長さをチェック
+    const audio = new Audio()
+    const url = URL.createObjectURL(f)
+    
+    audio.addEventListener('loadedmetadata', () => {
+      URL.revokeObjectURL(url)
+      const duration = audio.duration
+      
+      if (fileType === 'inst' && duration > MAX_DURATION_INST) {
+        resolve(`instは最大5分まで（現在: ${Math.floor(duration)}秒）`)
+      } else if ((fileType === 'vocal' || fileType === 'harmony') && duration > MAX_DURATION_VOCAL) {
+        resolve(`ボーカル/ハモリは最大60秒まで（現在: ${Math.floor(duration)}秒）`)
+      } else {
+        resolve(null)
+      }
+    })
+    
+    audio.addEventListener('error', () => {
+      URL.revokeObjectURL(url)
+      resolve('オーディオファイルの読み込みに失敗しました')
+    })
+    
+    audio.src = url
+  })
 }
 
 export default function UploadPage() {
@@ -236,7 +270,7 @@ export default function UploadPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckIcon className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span>対応形式：WAV・MP3（60秒以内、20MB以下）</span>
+                <span>対応形式：WAV・MP3（inst: 5分以内、ボーカル: 60秒以内、20MB以下）</span>
               </li>
               <li className="flex items-start gap-2">
                 <AlertIcon className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
@@ -286,6 +320,7 @@ function UploadArea({
           onFileSelect={onInstFileSelect}
           accept={ACCEPT}
           validateFile={validateFile}
+          fileType="inst"
         />
         
         <FileDropSlot
@@ -295,6 +330,7 @@ function UploadArea({
           onFileSelect={onVocalFileSelect}
           accept={ACCEPT}
           validateFile={validateFile}
+          fileType="vocal"
         />
       </div>
 
@@ -354,6 +390,7 @@ function UploadArea({
                 onFileSelect={onHarmonyFileSelect}
                 accept={ACCEPT}
                 validateFile={validateFile}
+                fileType="harmony"
               />
             )}
 
@@ -383,14 +420,16 @@ function FileDropSlot({
   file, 
   onFileSelect, 
   accept,
-  validateFile 
+  validateFile,
+  fileType 
 }: {
   label: string
   required?: boolean
   file: File | null
   onFileSelect: (file: File | null) => void
   accept: string
-  validateFile: (file: File) => string | null
+  validateFile: (file: File, fileType: 'inst' | 'vocal' | 'harmony') => Promise<string | null>
+  fileType: 'inst' | 'vocal' | 'harmony'
 }) {
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -405,8 +444,8 @@ function FileDropSlot({
     }
   }
 
-  const handleFileSelect = (selectedFile: File) => {
-    const err = validateFile(selectedFile)
+  const handleFileSelect = async (selectedFile: File) => {
+    const err = await validateFile(selectedFile, fileType)
     if (err) {
       setError(err)
       return
@@ -485,7 +524,7 @@ function FileDropSlot({
                   ファイルをドロップするか、クリックして選択
                 </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  WAV・MP3 / {MAX_MB}MB以下 / 60秒以内
+                  WAV・MP3 / {MAX_MB}MB以下 / {fileType === 'inst' ? '5分' : '60秒'}以内
                 </div>
               </div>
             </>

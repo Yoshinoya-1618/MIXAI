@@ -41,6 +41,39 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'オーディオファイルがアップロードされていません' }, { status: 400 })
     }
 
+    // instファイルのトリミング処理を実行（まだトリミングされていない場合）
+    if (!job.instrumental_path_trimmed) {
+      console.log(`✂️ Trimming inst file for job ${jobId}`)
+      
+      // トリミングAPIを呼び出し
+      const trimResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/v1/jobs/${jobId}/trim`, {
+        method: 'POST',
+        headers: {
+          'Authorization': request.headers.get('Authorization') || '',
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!trimResponse.ok) {
+        console.error('Failed to trim inst file')
+        // トリミングに失敗してもそのまま続行（元のinstを使用）
+      } else {
+        // ジョブ情報を再取得してトリミング済みパスを取得
+        const { data: updatedJob } = await supabase
+          .from('jobs')
+          .select('instrumental_path_trimmed')
+          .eq('id', jobId)
+          .single()
+        
+        if (updatedJob?.instrumental_path_trimmed) {
+          job.instrumental_path_trimmed = updatedJob.instrumental_path_trimmed
+        }
+      }
+    }
+
+    // 処理に使用するinstパスを決定（トリミング済みがあればそれを使用）
+    const instPathToUse = job.instrumental_path_trimmed || job.instrumental_path
+
     // 冪等性チェック：ai_ok_artifactが既に存在する場合はスキップ
     if (job.ai_ok_artifact_id) {
       const { data: aiOkArtifact } = await supabase
@@ -86,9 +119,53 @@ export async function POST(request: NextRequest) {
       .eq('id', jobId)
 
     try {
+      // ML推論を試みる
+      let mlInferenceResult = null
+      try {
+        // フィーチャーフラグの確認
+        const { data: mlFlag } = await supabase
+          .from('feature_flags')
+          .select('*')
+          .eq('key', 'enable_cpu_ml')
+          .single()
+
+        if (mlFlag?.is_enabled) {
+          // ML推論APIを呼び出し
+          const inferResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/v1/ml/infer`, {
+            method: 'POST',
+            headers: {
+              'Authorization': request.headers.get('Authorization') || '',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              jobId,
+              task: 'master_params'
+            })
+          })
+
+          if (inferResponse.ok) {
+            const inferData = await inferResponse.json()
+            mlInferenceResult = inferData.results?.masterParams
+            console.log('🤖 ML inference successful:', mlInferenceResult)
+          }
+        }
+      } catch (mlError) {
+        console.warn('ML inference failed, falling back to rule-based:', mlError)
+      }
+
       // 高度音声解析を実行
-      // モック解析結果
-      const analysisResult = {
+      // ML推論結果があればそれを使用、なければルールベース
+      const analysisResult = mlInferenceResult ? {
+        air: (mlInferenceResult.lowShelfDb + 3) / 6,
+        body: (mlInferenceResult.highShelfDb + 3) / 6,
+        punch: mlInferenceResult.compDb / 6,
+        width: 0.4,
+        vocal: 0.8,
+        clarity: plan !== 'lite' ? 0.6 : undefined,
+        presence: plan === 'creator' ? 0.5 : undefined,
+        analysis_method: 'ml_enhanced',
+        processingTime: 800
+      } : {
         air: 0.6,
         body: 0.5,
         punch: 0.7,
@@ -101,8 +178,21 @@ export async function POST(request: NextRequest) {
       }
 
       // AI MIXパラメータを計算
-      // AI MIXパラメータを計算（モック実装）
-      const aiParams = {
+      const aiParams = mlInferenceResult ? {
+        airDb: mlInferenceResult.lowShelfDb,
+        lowDb: mlInferenceResult.highShelfDb,
+        punchCompDb: mlInferenceResult.compDb,
+        spaceReverbSec: analysisResult.width * 2.8 + 0.2,
+        presenceDb: analysisResult.vocal * 6 - 3,
+        clarityDb: analysisResult.clarity ? analysisResult.clarity * 6 - 3 : 0,
+        exciterDb: analysisResult.presence ? analysisResult.presence * 6 - 3 : 0,
+        deEssDb: 2.0,
+        satDb: 1.0,
+        stereoRatio: 1.0,
+        gateThreshDb: -45,
+        harmVol: 0.6,
+        targetLufs: mlInferenceResult.targetLufs || -14
+      } : {
         airDb: analysisResult.air * 6 - 3,
         lowDb: analysisResult.body * 6 - 3,
         punchCompDb: analysisResult.punch * 6,

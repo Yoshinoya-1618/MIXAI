@@ -138,7 +138,7 @@ export default function AdminSidebar({ roles }: AdminSidebarProps) {
                     <item.icon className="mr-3 h-5 w-5" />
                     {item.name}
                   </div>
-                  {item.badge > 0 && (
+                  {item.badge && item.badge > 0 && (
                     <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                       {item.badge}
                     </span>

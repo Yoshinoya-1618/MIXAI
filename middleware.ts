@@ -35,6 +35,17 @@ export async function middleware(request: NextRequest) {
     }
   }
   
+  // 管理者ルート
+  const adminPaths = [
+    '/admin',
+    '/admin/jobs',
+    '/admin/users',
+    '/admin/feedback',
+    '/admin/flags',
+    '/admin/vault',
+    '/admin/audit'
+  ]
+  
   // 認証が必要なパス
   const protectedPaths = [
     '/dashboard',
@@ -60,6 +71,66 @@ export async function middleware(request: NextRequest) {
   
   const path = request.nextUrl.pathname
   
+  // 管理者パスへのアクセスチェック
+  const isAdminPath = adminPaths.some(p => path.startsWith(p))
+  
+  if (isAdminPath) {
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      const redirectUrl = new URL('/auth/login', request.url)
+      redirectUrl.searchParams.set('redirectTo', path)
+      return NextResponse.redirect(redirectUrl)
+    }
+    
+    // ユーザープロファイルと役割を取得
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('roles, suspended')
+      .eq('id', session.user.id)
+      .single()
+    
+    // アカウントが停止されている場合
+    if (profile?.suspended) {
+      return NextResponse.redirect(new URL('/auth/suspended', request.url))
+    }
+    
+    // 管理者権限チェック
+    const allowedRoles = ['admin', 'ops', 'support', 'read_only']
+    if (!profile?.roles || !allowedRoles.includes(profile.roles)) {
+      // 監査ログに記録
+      await supabase
+        .from('audit_logs')
+        .insert({
+          actor_id: session.user.id,
+          action: 'security:access_denied',
+          entity: `route:${path}`,
+          ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+          user_agent: request.headers.get('user-agent')
+        })
+      
+      return NextResponse.redirect(new URL('/auth/unauthorized', request.url))
+    }
+    
+    // 特定のルートに対する追加の権限チェック
+    if (path.startsWith('/admin/users') || path.startsWith('/admin/vault')) {
+      if (!['admin', 'ops'].includes(profile.roles)) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+    }
+    
+    // アクセスログ記録
+    await supabase
+      .from('audit_logs')
+      .insert({
+        actor_id: session.user.id,
+        action: 'admin:access',
+        entity: `route:${path}`,
+        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+        user_agent: request.headers.get('user-agent')
+      })
+  }
+  
   // 保護されたパスへのアクセスチェック
   const isProtectedPath = protectedPaths.some(p => path.startsWith(p))
   const isProtectedApi = protectedApiPaths.some(p => path.startsWith(p))
@@ -84,6 +155,17 @@ export async function middleware(request: NextRequest) {
         redirectUrl.searchParams.set('redirectTo', path)
         return NextResponse.redirect(redirectUrl)
       }
+    }
+    
+    // アカウント停止チェック
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('suspended')
+      .eq('id', session.user.id)
+      .single()
+    
+    if (profile?.suspended) {
+      return NextResponse.redirect(new URL('/auth/suspended', request.url))
     }
   }
   

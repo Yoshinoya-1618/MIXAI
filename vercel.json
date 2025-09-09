@@ -9,8 +9,16 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/release-holds",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/train",
+      "schedule": "0 3 * * 0"
     }
   ],
   "functions": {
@@ -20,7 +28,19 @@
     "app/api/cron/cleanup-data/route.ts": {
       "maxDuration": 60
     },
+    "app/api/cron/cleanup/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/cron/release-holds/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/cron/train/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/v1/mix/analyze/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/v1/ml/infer/route.ts": {
       "maxDuration": 30
     }
   }
