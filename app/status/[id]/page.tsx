@@ -8,8 +8,19 @@ import Footer from '../../../components/common/Footer'
 
 interface Props { params: { id: string } }
 
+interface JobData {
+  id: string
+  status: string
+  created_at: string
+  updated_at: string
+  error?: string
+  preset_key?: string
+  plan_code?: string
+}
+
 export default function StatusPage({ params }: Props) {
   const router = useRouter()
+  const [jobData, setJobData] = useState<JobData | null>(null)
   const [status, setStatus] = useState('uploaded')
   const [failed, setFailed] = useState(false)
   const [offset, setOffset] = useState(0)
@@ -21,26 +32,37 @@ export default function StatusPage({ params }: Props) {
         const res = await apiFetch(`/api/v1/jobs/${params.id}`)
         if (res.ok) {
           const j = await res.json()
+          setJobData(j)
           setStatus(j.status)
           if (j.status === 'done') {
-            if (!stop) router.push(`/result/${params.id}`)
+            if (!stop) {
+              setTimeout(() => {
+                router.push(`/result/${params.id}`)
+              }, 1500) // 少し待ってから遷移
+            }
             return
           }
-          if (j.status === 'failed') setFailed(true)
+          if (j.status === 'failed') {
+            setFailed(true)
+            return // ポーリング停止
+          }
         }
-      } catch {}
-      if (!stop) setTimeout(poll, 2000)
+      } catch (err) {
+        console.error('Status polling error:', err)
+      }
+      if (!stop && !failed && status !== 'done') {
+        setTimeout(poll, 2000)
+      }
     }
     poll()
     return () => { stop = true }
-  }, [params.id, router])
+  }, [params.id, router, failed, status])
 
   const getStatusText = (status: string) => {
     switch (status) {
       case 'uploaded': return 'アップロード完了'
-      case 'processing': return '音声解析中'
-      case 'mixing': return 'MIX処理中'
-      case 'mastering': return 'マスタリング中'
+      case 'paid': return '決済完了・処理待機中'
+      case 'processing': return 'AI処理中'
       case 'done': return '処理完了'
       case 'failed': return '処理失敗'
       default: return status
@@ -51,19 +73,18 @@ export default function StatusPage({ params }: Props) {
     switch (status) {
       case 'done': return 'text-green-600 bg-green-50'
       case 'failed': return 'text-red-600 bg-red-50'
-      case 'processing':
-      case 'mixing':
-      case 'mastering': return 'text-blue-600 bg-blue-50'
+      case 'processing': return 'text-blue-600 bg-blue-50'
+      case 'paid': return 'text-indigo-600 bg-indigo-50'
+      case 'uploaded': return 'text-gray-600 bg-gray-50'
       default: return 'text-gray-600 bg-gray-50'
     }
   }
 
   const getProgressPercent = (status: string) => {
     switch (status) {
-      case 'uploaded': return 10
-      case 'processing': return 30
-      case 'mixing': return 60
-      case 'mastering': return 85
+      case 'uploaded': return 20
+      case 'paid': return 40
+      case 'processing': return 70
       case 'done': return 100
       case 'failed': return 0
       default: return 0
@@ -83,11 +104,33 @@ export default function StatusPage({ params }: Props) {
 
         <div className="card p-8">
           {/* ジョブ情報 */}
-          <div className="mb-6">
-            <div className="text-sm text-gray-600 mb-2">ジョブID</div>
-            <code className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
-              {params.id}
-            </code>
+          <div className="mb-6 space-y-3">
+            <div>
+              <div className="text-sm text-gray-600 mb-1">ジョブID</div>
+              <code className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
+                {params.id}
+              </code>
+            </div>
+            {jobData && (
+              <>
+                {jobData.plan_code && (
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">プラン</div>
+                    <span className="text-sm font-medium">
+                      {jobData.plan_code.charAt(0).toUpperCase() + jobData.plan_code.slice(1)}
+                    </span>
+                  </div>
+                )}
+                {jobData.created_at && (
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">開始時刻</div>
+                    <span className="text-sm">
+                      {new Date(jobData.created_at).toLocaleString('ja-JP')}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* ステータス */}
@@ -145,30 +188,29 @@ export default function StatusPage({ params }: Props) {
                   <h3 className="font-medium text-red-800 mb-2">処理に失敗しました</h3>
                   <p className="text-sm text-red-700 mb-4">
                     音声ファイルの処理中にエラーが発生しました。
-                    オフセット調整を行って再試行してください。
                   </p>
                   
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-red-800 mb-2">
-                        オフセット調整（±2秒）
-                      </label>
-                      <input 
-                        type="range" 
-                        min="-2000" 
-                        max="2000" 
-                        step="10" 
-                        value={offset}
-                        onChange={(e) => setOffset(Number(e.target.value))}
-                        className="w-full"
-                      />
-                      <div className="text-xs text-red-600 mt-1">
-                        現在の値: {offset}ms
+                  {jobData?.error && (
+                    <div className="bg-white/50 border border-red-200 rounded p-3 mb-4">
+                      <div className="text-xs font-medium text-red-800 mb-1">エラー詳細:</div>
+                      <div className="text-xs text-red-700 font-mono">
+                        {jobData.error}
                       </div>
                     </div>
-                    
-                    <button className="btn-primary px-4 py-2 bg-red-600 hover:bg-red-700">
-                      再試行
+                  )}
+                  
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => router.push('/upload')}
+                      className="btn-primary px-4 py-2 bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      新しくアップロード
+                    </button>
+                    <button 
+                      onClick={() => window.location.href = '/contact'}
+                      className="px-4 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50"
+                    >
+                      サポートに連絡
                     </button>
                   </div>
                 </div>
@@ -181,6 +223,12 @@ export default function StatusPage({ params }: Props) {
             <div className="text-center py-6 text-gray-600">
               <p className="mb-2">音声を処理しています。しばらくお待ちください。</p>
               <p className="text-sm">このページは自動的に更新されます。</p>
+              <div className="mt-4">
+                <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>サーバーと接続中</span>
+                </div>
+              </div>
             </div>
           )}
         </div>

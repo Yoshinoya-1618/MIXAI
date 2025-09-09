@@ -21,6 +21,7 @@ interface FeedbackStatsProps {
       bug: number
       feature: number
       improvement: number
+      contact: number
       other: number
     }
   }

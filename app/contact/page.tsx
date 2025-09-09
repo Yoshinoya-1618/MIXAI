@@ -55,11 +55,36 @@ export default function ContactPage() {
     e.preventDefault()
     setSending(true)
     
-    // ここで実際の送信処理
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    setSending(false)
-    setSent(true)
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setSent(true)
+        // フォームをリセット
+        setFormData({
+          category: 'general',
+          name: '',
+          email: '',
+          subject: '',
+          message: ''
+        })
+      } else {
+        alert(result.error || 'エラーが発生しました。もう一度お試しください。')
+      }
+    } catch (error) {
+      console.error('Contact form error:', error)
+      alert('通信エラーが発生しました。もう一度お試しください。')
+    } finally {
+      setSending(false)
+    }
   }
 
   if (sent) {
