@@ -122,7 +122,7 @@ export default function JobsTable({ initialJobs }: JobsTableProps) {
       if (!error) {
         setJobs(jobs.map(job => 
           job.id === jobId 
-            ? { ...job, status: 'queued', error_message: null }
+            ? { ...job, status: 'queued', error_message: undefined }
             : job
         ))
       }
