@@ -3,6 +3,8 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Database, FileAudio, Clock, HardDrive, Trash2, Archive } from 'lucide-react'
 import VaultTable from '../../../components/admin/VaultTable'
 
+export const dynamic = 'force-dynamic'
+
 export default async function VaultManagement() {
   const supabase = createServerComponentClient({ cookies })
   

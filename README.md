@@ -1,28 +1,40 @@
-# 🎵 MIXAI v1.4 - うた整音
+# 🎵 MIXAI v2.0 - AIパワード音声ミキシングプラットフォーム
 
-[![GitHub Actions](https://github.com/mixai/mixai/workflows/Deploy%20to%20Production/badge.svg)](https://github.com/mixai/mixai/actions)
+[![Deployment Status](https://img.shields.io/badge/deployment-vercel-brightgreen)](https://vercel.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-14.2-black)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
-[![Python Version](https://img.shields.io/badge/python-%3E%3D3.13-blue)](https://python.org/)
 
-**歌声が、主役になる。** AI音声処理で自然な仕上がりを実現するオンラインMIXサービス
+**歌声が、主役になる。** AI駆動の音声処理と機械学習で、プロフェッショナルなミキシングを自動化
 
 ## ✨ 主な機能
 
-- 🎵 **高精度オフセット検出**: librosaを使用した本格的な相関解析
-- 💳 **Stripe決済統合**: セキュアな都度課金システム
-- 🗄️ **自動データ削除**: 7日経過後の自動クリーンアップ
-- 🔒 **セキュリティ強化**: CORS最小化、CSP、レート制限
-- 📊 **本格監視**: Prometheus + Grafana ダッシュボード
-- ✅ **完全テスト**: Jest単体テスト + Playwright E2Eテスト
+### コア機能
+- 🎵 **AIミキシング**: 機械学習モデルによる自動パラメータ最適化
+- 🤖 **CPU最適化ML**: ONNX Runtimeを使用したCPUベースの推論
+- 🎯 **特徴量抽出**: スペクトル、時間、MFCC、クロマ、ラウドネス解析
+- 🔄 **A/Bテスト**: 段階的なモデルロールアウトと効果測定
+- 🎛️ **フィーチャーフラグ**: 機能の安全な段階的リリース
+
+### ビジネス機能
+- 💳 **サブスクリプション**: Lite/Standard/Creatorプラン
+- 💰 **クレジットシステム**: 柔軟な従量課金とパック購入
+- 📊 **管理ダッシュボード**: ユーザー管理、ジョブ監視、ML管理
+- 📈 **分析・監視**: リアルタイムメトリクスとパフォーマンス追跡
 
 ## 🚀 クイックスタート
 
-### 開発環境
+### 必要要件
+- Node.js 20以上
+- npm または yarn
+- Supabaseアカウント
+- Stripeアカウント（決済機能用）
+
+### 開発環境セットアップ
 
 ```bash
 # リポジトリクローン
-git clone https://github.com/mixai/mixai.git
+git clone https://github.com/yourusername/mixai.git
 cd mixai
 
 # 依存関係インストール
@@ -30,117 +42,155 @@ npm install
 
 # 環境変数設定
 cp .env.example .env.local
-# .env.local を編集してSupabaseとStripe設定を追加
+# .env.local を編集して必要な値を設定
 
-# Python環境セットアップ（高度なオフセット検出用）
-bash setup-python.sh
+# データベースマイグレーション
+npx supabase db push
 
 # 開発サーバー起動
 npm run dev
-
-# ワーカー起動（別ターミナル）
-npm run worker
 ```
 
-### 本番環境（Docker Compose）
+アプリケーションは http://localhost:3000 で起動します。
+
+### Vercelへのデプロイ
 
 ```bash
-# 環境変数設定
-cp .env.example .env
+# Vercel CLIを使用
+npx vercel
 
-# Docker Compose起動
-docker-compose up -d
-
-# 監視ダッシュボード
-# Prometheus: http://localhost:9090
-# Grafana: http://localhost:3001 (admin/admin)
+# または GitHubと連携して自動デプロイ
 ```
+
+詳細は[デプロイメントガイド](./DEPLOYMENT_GUIDE.md)を参照してください。
 
 ## 📋 環境変数
 
-```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+必要な環境変数の詳細は[.env.example](./.env.example)を参照してください。
 
-# Stripe決済
-PAYMENT_PROVIDER=stripe
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+### 必須設定
+```env
+# Supabase（必須）
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# アプリ制約
-MAX_DURATION_SEC=60
-MAX_FILE_MB=20
-SIGNED_URL_TTL_SEC=300
-RETENTION_DAYS=7
-PRICE_JPY=150
+# Stripe（必須）
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+```
 
-# 監視（本番環境）
-GRAFANA_PASSWORD=secure_password
+### ML/AI設定（オプション）
+```env
+# ML機能の有効化
+ENABLE_CPU_ML=false
+ML_MIN_SAMPLES=1000
+USE_MOCK_ML=true  # 開発時はモック使用
 ```
 
 ## 🏗️ アーキテクチャ
 
+### 技術スタック
+- **フロントエンド**: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS
+- **バックエンド**: Next.js API Routes, Edge Functions
+- **データベース**: Supabase (PostgreSQL with RLS)
+- **認証**: Supabase Auth
+- **決済**: Stripe (サブスクリプション + 従量課金)
+- **ML/AI**: ONNX Runtime (CPU最適化), TensorFlow.js (モック)
+- **音声処理**: FFmpeg, Web Audio API
+- **デプロイ**: Vercel
+
+### システム構成
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Next.js App   │────│  Supabase        │────│   Worker        │
-│   (Frontend)    │    │  (Auth/DB/Storage│    │   (FFmpeg+AI)   │
+│   Next.js App   │────│    Supabase      │────│   ML Worker     │
+│  (Frontend/API) │    │ (Auth/DB/Storage)│    │  (ONNX/FFmpeg)  │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
-         │              ┌──────────────────┐             │
-         └──────────────│     Stripe       │─────────────┘
-                        │   (Payments)     │
+         │              ┌──────────────────┐            │
+         └──────────────│     Stripe       │────────────┘
+                        │ (Payments/Billing)│
                         └──────────────────┘
-
-監視: Prometheus + Grafana
-インフラ: Docker + Nginx + Redis
 ```
 
-## 🧪 テスト
+## 🧪 開発とテスト
 
+### ビルドチェック
+```bash
+# TypeScriptの型チェック
+npx tsc --noEmit
+
+# ESLintチェック
+npm run lint
+
+# ビルド
+npm run build
+```
+
+### テスト実行
 ```bash
 # 単体テスト
 npm test
 
 # E2Eテスト
 npm run e2e
-
-# テストカバレッジ
-npm run test:coverage
 ```
 
-## 📊 監視・運用
-
-### ヘルスチェック
+### ローカルVercelビルド検証
 ```bash
-curl http://localhost:3000/api/health
+# Windows
+scripts\vercel-local-build.bat
+
+# Mac/Linux
+bash scripts/vercel-local-build.sh
 ```
 
-### メトリクス
-```bash
-curl http://localhost:3000/api/metrics
-```
+## 📊 管理・運用
 
-### ログ
-```bash
-docker-compose logs -f app
-```
+### 管理ダッシュボード
+- `/admin` - 管理者ダッシュボード
+- `/admin/users` - ユーザー管理
+- `/admin/jobs` - ジョブ監視
+- `/admin/ml` - ML管理
+- `/admin/flags` - フィーチャーフラグ
+
+### APIエンドポイント
+- `GET /api/health` - ヘルスチェック
+- `GET /api/metrics` - メトリクス
+- `POST /api/v1/mix/analyze` - 音声解析
+- `POST /api/v1/ml/extract` - 特徴量抽出
+- `POST /api/v1/ml/train` - モデル学習
+- `POST /api/v1/ml/infer` - 推論実行
 
 ## 🔧 運用コマンド
 
+### データベース管理
 ```bash
-# 本番デプロイ
-docker-compose -f docker-compose.prod.yml up -d
-
-# データベースマイグレーション
+# マイグレーション実行
 npx supabase db push
 
-# 期限切れデータ削除（手動実行）
-curl -X POST http://localhost:54321/functions/v1/cleanup-expired
+# マイグレーション状態確認
+npx supabase db status
+```
 
-# パフォーマンス監視
-npm run lighthouse
+### ML管理
+```bash
+# 学習ジョブ実行（管理画面から）
+curl -X POST /api/v1/ml/train \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# モデルメトリクス確認
+curl /api/v1/ml/metrics
+```
+
+### Vercelデプロイ
+```bash
+# 本番環境へデプロイ
+npx vercel --prod
+
+# プレビューデプロイ
+npx vercel
 ```
 
 ## 📁 プロジェクト構造
