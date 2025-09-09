@@ -8,6 +8,8 @@ import Header from '../../components/common/Header'
 import Footer from '../../components/common/Footer'
 
 const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_MB || process.env.MAX_FILE_MB || 20)
+const MAX_DURATION_INST = 300 // instは5分（300秒）まで
+const MAX_DURATION_VOCAL = 60 // ボーカルは60秒まで
 const ACCEPT = '.wav,.mp3,audio/wav,audio/mpeg'
 
 // =========================================
@@ -24,12 +26,44 @@ function clsx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(' ')
 }
 
-function validateFile(f: File): string | null {
-  const mb = f.size / (1024 * 1024)
-  if (mb > MAX_MB) return `サイズ超過: ${mb.toFixed(1)}MB（最大 ${MAX_MB}MB）`
-  const extOk = /\.(wav|mp3)$/i.test(f.name)
-  if (!extOk) return '拡張子は WAV/MP3 のみ'
-  return null
+function validateFile(f: File, fileType: 'inst' | 'vocal' | 'harmony'): Promise<string | null> {
+  return new Promise((resolve) => {
+    const mb = f.size / (1024 * 1024)
+    if (mb > MAX_MB) {
+      resolve(`サイズ超過: ${mb.toFixed(1)}MB（最大 ${MAX_MB}MB）`)
+      return
+    }
+    
+    const extOk = /\.(wav|mp3)$/i.test(f.name)
+    if (!extOk) {
+      resolve('拡張子は WAV/MP3 のみ')
+      return
+    }
+    
+    // オーディオの長さをチェック
+    const audio = new Audio()
+    const url = URL.createObjectURL(f)
+    
+    audio.addEventListener('loadedmetadata', () => {
+      URL.revokeObjectURL(url)
+      const duration = audio.duration
+      
+      if (fileType === 'inst' && duration > MAX_DURATION_INST) {
+        resolve(`instは最大5分まで（現在: ${Math.floor(duration)}秒）`)
+      } else if ((fileType === 'vocal' || fileType === 'harmony') && duration > MAX_DURATION_VOCAL) {
+        resolve(`ボーカル/ハモリは最大60秒まで（現在: ${Math.floor(duration)}秒）`)
+      } else {
+        resolve(null)
+      }
+    })
+    
+    audio.addEventListener('error', () => {
+      URL.revokeObjectURL(url)
+      resolve('オーディオファイルの読み込みに失敗しました')
+    })
+    
+    audio.src = url
+  })
 }
 
 export default function UploadPage() {
@@ -40,6 +74,8 @@ export default function UploadPage() {
   const [harmonyMode, setHarmonyMode] = useState<'upload' | 'generate'>('upload')
   const [msg, setMsg] = useState<string>('')
   const [busy, setBusy] = useState(false)
+  const [userCredits, setUserCredits] = useState<number>(0)
+  const [showCreditWarning, setShowCreditWarning] = useState(false)
   const router = useRouter()
 
   // バリデーション
@@ -157,16 +193,47 @@ export default function UploadPage() {
             </div>
           )}
 
+          {/* Credit Warning */}
+          {userCredits < 1 && hasRequiredFiles && (
+            <div className="mb-6">
+              <div className="glass-card p-6 border-l-4 border-amber-400 bg-amber-50/50">
+                <div className="flex items-start gap-3">
+                  <AlertIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-900 mb-2">クレジットが不足しています</div>
+                    <div className="text-sm text-amber-800 mb-4">
+                      MIX処理には最低1クレジットが必要です。現在の残高: <strong>{userCredits}クレジット</strong>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => router.push('/credits')}
+                        className="bg-amber-600 text-white hover:bg-amber-700 px-4 py-2 rounded-lg font-medium"
+                      >
+                        クレジット購入（コンビニ・銀行振込OK）
+                      </button>
+                      <button
+                        onClick={() => router.push('/pricing')}
+                        className="bg-white text-amber-700 hover:bg-amber-50 px-4 py-2 rounded-lg font-medium border border-amber-300"
+                      >
+                        サブスクプランを見る
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
             <button
               className={`btn-primary text-lg px-8 py-3 transition-all ${
-                canProceed 
+                canProceed && userCredits >= 1
                   ? 'shadow-lg hover:shadow-xl' 
                   : 'opacity-50 cursor-not-allowed'
               }`}
               onClick={onNext}
-              disabled={!canProceed}
+              disabled={!canProceed || userCredits < 1}
             >
               <div className="flex items-center gap-2">
                 {busy ? (
@@ -177,6 +244,17 @@ export default function UploadPage() {
                 <span>プレビューへ進む</span>
               </div>
             </button>
+            
+            {userCredits < 1 && !hasRequiredFiles && (
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">
+                  クレジットをお持ちでない方も、まずはファイルをアップロードしてください
+                </p>
+                <a href="/credits" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
+                  クレジット購入について詳しく見る →
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Notice */}
@@ -192,7 +270,7 @@ export default function UploadPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckIcon className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span>対応形式：WAV・MP3（60秒以内、20MB以下）</span>
+                <span>対応形式：WAV・MP3（inst: 5分以内、ボーカル: 60秒以内、20MB以下）</span>
               </li>
               <li className="flex items-start gap-2">
                 <AlertIcon className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
@@ -236,12 +314,13 @@ function UploadArea({
     <div className="glass-card p-8 space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FileDropSlot
-          label="インスト（伴奏）"
+          label="inst"
           required
           file={instFile}
           onFileSelect={onInstFileSelect}
           accept={ACCEPT}
           validateFile={validateFile}
+          fileType="inst"
         />
         
         <FileDropSlot
@@ -251,6 +330,7 @@ function UploadArea({
           onFileSelect={onVocalFileSelect}
           accept={ACCEPT}
           validateFile={validateFile}
+          fileType="vocal"
         />
       </div>
 
@@ -310,6 +390,7 @@ function UploadArea({
                 onFileSelect={onHarmonyFileSelect}
                 accept={ACCEPT}
                 validateFile={validateFile}
+                fileType="harmony"
               />
             )}
 
@@ -339,14 +420,16 @@ function FileDropSlot({
   file, 
   onFileSelect, 
   accept,
-  validateFile 
+  validateFile,
+  fileType 
 }: {
   label: string
   required?: boolean
   file: File | null
   onFileSelect: (file: File | null) => void
   accept: string
-  validateFile: (file: File) => string | null
+  validateFile: (file: File, fileType: 'inst' | 'vocal' | 'harmony') => Promise<string | null>
+  fileType: 'inst' | 'vocal' | 'harmony'
 }) {
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -361,8 +444,8 @@ function FileDropSlot({
     }
   }
 
-  const handleFileSelect = (selectedFile: File) => {
-    const err = validateFile(selectedFile)
+  const handleFileSelect = async (selectedFile: File) => {
+    const err = await validateFile(selectedFile, fileType)
     if (err) {
       setError(err)
       return
@@ -441,7 +524,7 @@ function FileDropSlot({
                   ファイルをドロップするか、クリックして選択
                 </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  WAV・MP3 / {MAX_MB}MB以下 / 60秒以内
+                  WAV・MP3 / {MAX_MB}MB以下 / {fileType === 'inst' ? '5分' : '60秒'}以内
                 </div>
               </div>
             </>
@@ -467,6 +550,9 @@ function StyleTokens() {
         --indigo: ${COLORS.indigo};
         --blue: ${COLORS.blue};
         --magenta: ${COLORS.magenta};
+        --brand: #6366F1;
+        --brandAlt: #9B6EF3;
+        --accent: ${COLORS.blue};
       }
       
       .glass-card {

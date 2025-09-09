@@ -1,37 +1,55 @@
-// app/mix/lite/[jobId]/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import PreviewEditOnly from '../../../../preview_edit_only_v_7'
+import MixTonePanelOnly from '../../../../Mix Tone Panel Only'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Play, Pause, Download, RotateCcw, Sparkles } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Play, Pause, Download, RotateCcw, Sparkles, Music, Volume2, VolumeX, Wand2, HelpCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-interface MixParams {
-  air: number
-  body: number
-  punch: number
-  width: number
-  vocal: number
-  fade_in: number
-  fade_out: number
-  output_gain: number
-  genre_target: string
-  offset_ms: number
+// Lite Plan Mix Params (5軸: Air/Body/Punch/Width/Vocal)
+interface LiteMixParams {
+  airDb: number          // Air (8-12kHz shelf)
+  lowDb: number          // Body (200-350Hz bell)
+  highDb: number         // High frequencies
+  punchCompDb: number    // Punch (低域MB GR上限)
+  spaceReverbSec: number // Width (中高域Side)
+  presenceDb: number     // Vocal (2-4kHz bell)
+  deEssDb: number        // 単帯域De-esser
+  satDb: number          // サチュレーション
+  stereoRatio: number    // ステレオ比率
+  gateThreshDb: number   // ノイズゲート
+  harmVol: number        // ハモリ音量
 }
 
 interface JobData {
   id: string
   title: string
   status: string
-  ai_params: MixParams
-  user_params: MixParams
-  last_export_params?: MixParams
+  plan: 'lite' | 'standard' | 'creator'
+  ai_params: LiteMixParams
+  user_params: LiteMixParams
+  last_export_params?: LiteMixParams
   metrics: any
+  // v2.0 アーティファクト管理
+  prep_artifact_id: string | null
+  ai_ok_artifact_id: string | null
+  final_artifact_id: string | null
+  // ハモリ機能
+  harmony_choice: 'none' | 'up_m3' | 'down_m3' | 'perfect_5th' | 'up_down'
+  harmony_level_db: number
+  harmony_generated: boolean
+  // オーディオ情報
+  duration_s?: number
+  measured_lufs?: number
+  true_peak?: number
+  dynamic_range?: number
 }
 
 export default function LiteMixPage() {
@@ -41,7 +59,19 @@ export default function LiteMixPage() {
   const jobId = params.jobId as string
 
   const [job, setJob] = useState<JobData | null>(null)
-  const [currentParams, setCurrentParams] = useState<MixParams | null>(null)
+  const [mixParams, setMixParams] = useState<LiteMixParams>({
+    airDb: 0.0,
+    lowDb: 0.0,
+    highDb: 0.0,
+    punchCompDb: 1.0,
+    spaceReverbSec: 1.0,
+    presenceDb: 0.0,
+    deEssDb: 2.0,
+    satDb: 1.0,
+    stereoRatio: 1.0,
+    gateThreshDb: -45,
+    harmVol: 0.6
+  })
   const [activeMode, setActiveMode] = useState<'AI_BASE' | 'USER_EDIT'>('USER_EDIT')
   const [isPlaying, setIsPlaying] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -49,6 +79,13 @@ export default function LiteMixPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [exportUrl, setExportUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // ハモリ機能
+  const [harmonyChoice, setHarmonyChoice] = useState<'none' | 'up_m3' | 'down_m3' | 'p5' | 'up_down'>('none')
+  const [harmonyLevel, setHarmonyLevel] = useState(0.6)
+  const [abComparison, setAbComparison] = useState(false)
+  const [preMaster, setPreMaster] = useState(false)
+  const [harmonyPreviewUrl, setHarmonyPreviewUrl] = useState<string | null>(null)
+  const [isApplyingHarmony, setIsApplyingHarmony] = useState(false)
 
   // ジョブデータ取得
   useEffect(() => {
@@ -64,7 +101,18 @@ export default function LiteMixPage() {
 
         const data = await response.json()
         setJob(data.job)
-        setCurrentParams(data.job.user_params || data.job.ai_params)
+        // AI適用済みパラメータがあれば初期値として設定
+        if (data.job.ai_params) {
+          setMixParams(prev => ({ ...prev, ...data.job.ai_params }))
+        }
+        
+        // ハモリ設定の初期化
+        if (data.job.harmony_choice) {
+          setHarmonyChoice(data.job.harmony_choice)
+        }
+        if (data.job.harmony_level_db !== undefined) {
+          setHarmonyLevel(data.job.harmony_level_db)
+        }
       } catch (error) {
         console.error('Job fetch error:', error)
         toast({
@@ -81,108 +129,106 @@ export default function LiteMixPage() {
     fetchJob()
   }, [jobId, router, toast])
 
-  // パラメータ変更ハンドラー
-  const handleParamChange = (param: keyof MixParams, value: number) => {
-    if (!currentParams) return
-
-    setCurrentParams(prev => ({
-      ...prev!,
-      [param]: value
-    }))
+  // Mix Tone Panelからのコミットハンドラ
+  const handleMixCommit = (newParams: LiteMixParams) => {
+    setMixParams(newParams)
   }
 
-  // AI_BASEに戻す
-  const resetToAIBase = () => {
-    if (!job) return
-    setCurrentParams(job.ai_params)
-    setActiveMode('AI_BASE')
-    toast({
-      title: "リセット完了",
-      description: "AI適用値に戻しました"
-    })
+  // Mix Tone Panelのリセットハンドラ
+  const handleMixReset = () => {
+    if (job?.ai_params) {
+      setMixParams({ ...mixParams, ...job.ai_params })
+    }
   }
+
 
   // プレビュー生成
-  const generatePreview = async () => {
-    if (!currentParams || isGeneratingPreview) return
+  const handlePreview = async () => {
+    if (isGeneratingPreview) return
 
     setIsGeneratingPreview(true)
     try {
       const response = await fetch('/api/v1/mix/preview', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobId,
-          params: currentParams,
-          ab: activeMode
-        })
+          params: mixParams,
+          harmony_trial: harmonyChoice !== 'none' ? harmonyChoice : null,
+        }),
       })
 
-      if (!response.ok) {
-        throw new Error('プレビュー生成に失敗しました')
+      if (response.ok) {
+        const data = await response.json()
+        // プレビューURLを PreviewEditOnly に渡す
+        if ((window as any).mixaiDecodeAndSetAudio) {
+          const audioResponse = await fetch(data.previewUrl)
+          const arrayBuffer = await audioResponse.arrayBuffer()
+          ;(window as any).mixaiDecodeAndSetAudio(arrayBuffer)
+        }
       }
-
-      const data = await response.json()
-      setPreviewUrl(data.previewUrl)
-      setActiveMode('USER_EDIT')
-      
-      toast({
-        title: "プレビュー生成完了",
-        description: "30秒プレビューが生成されました（クレジット消費なし）"
-      })
     } catch (error) {
-      console.error('Preview error:', error)
-      toast({
-        title: "エラー",
-        description: "プレビュー生成に失敗しました",
-        variant: "destructive"
-      })
+      console.error('Error generating preview:', error)
     } finally {
       setIsGeneratingPreview(false)
     }
   }
 
+  // ハモリ確定（Lite版は +0.5C）
+  const handleConfirmHarmony = async () => {
+    if (harmonyChoice === 'none' || isApplyingHarmony) return
+
+    setIsApplyingHarmony(true)
+    try {
+      const response = await fetch('/api/v1/mix/harmony/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId,
+          choice: harmonyChoice,
+          level_db: harmonyLevel,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast({
+          title: "ハモリ適用完了",
+          description: `ハモリが確定されました（${data.credits_delta ? `${data.credits_delta}C消費` : '0C'}）`
+        })
+      }
+    } catch (error) {
+      console.error('Error confirming harmony:', error)
+    } finally {
+      setIsApplyingHarmony(false)
+    }
+  }
+
   // 最終書き出し
-  const exportFinal = async () => {
-    if (!currentParams || isExporting) return
+  const handleExport = async (format: string) => {
+    if (isExporting) return
 
     setIsExporting(true)
     try {
       const response = await fetch('/api/v1/mix/export', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobId,
-          params: currentParams,
-          format: 'mp3', // Liteプランは MP3のみ
-          targetLufs: -14
-        })
+          params: mixParams,
+          format,
+          targetLufs: -14,
+        }),
       })
 
-      if (!response.ok) {
-        throw new Error('書き出しに失敗しました')
+      if (response.ok) {
+        const data = await response.json()
+        
+        // 結果ページへ遷移
+        router.push(`/result/${jobId}`)
       }
-
-      const data = await response.json()
-      setExportUrl(data.fileUrl)
-      
-      toast({
-        title: "書き出し完了",
-        description: `MP3ファイルが生成されました（クレジット消費なし）`
-      })
     } catch (error) {
-      console.error('Export error:', error)
-      toast({
-        title: "エラー",
-        description: "書き出しに失敗しました",
-        variant: "destructive"
-      })
+      console.error('Error exporting:', error)
     } finally {
       setIsExporting(false)
     }
@@ -194,259 +240,172 @@ export default function LiteMixPage() {
     </div>
   }
 
-  if (!job || !currentParams) {
+  if (!job) {
     return <div className="text-center py-8">ジョブが見つかりません</div>
   }
 
+  // ハモリオプション定義
+  const HARMONY_OPTIONS = [
+    { key: 'none', label: 'なし', description: 'リード単体' },
+    { key: 'up_m3', label: 'Up 3度', description: '上の3度' },
+    { key: 'down_m3', label: 'Down 3度', description: '下の3度' },
+    { key: 'p5', label: 'Perfect 5th', description: '完全5度' },
+    { key: 'up_down', label: 'Up + Down', description: '上下3度同時' },
+  ]
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* ヘッダー */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary">Lite</Badge>
-              <h1 className="text-2xl font-bold">{job.title}</h1>
-            </div>
-            <p className="text-muted-foreground mt-1">
-              5軸MIX調整 • MP3書き出し • クレジット消費なし
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/mypage')}
-          >
-            マイページに戻る
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* メイン調整パネル */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  MIX パラメータ調整
-                </CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={resetToAIBase}
-                  className="flex items-center gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  AI値に戻す
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Air - 高域の華やかさ */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium">Air - 高域の華やかさ</label>
-                  <span className="text-sm text-muted-foreground">
-                    {Math.round(currentParams.air * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  value={[currentParams.air]}
-                  onValueChange={([value]) => handleParamChange('air', value)}
-                  max={1}
-                  min={0}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  8-12kHz帯域を調整して高域の輝きを追加
-                </p>
-              </div>
-
-              {/* Body - 中低域の厚み */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium">Body - 中低域の厚み</label>
-                  <span className="text-sm text-muted-foreground">
-                    {Math.round(currentParams.body * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  value={[currentParams.body]}
-                  onValueChange={([value]) => handleParamChange('body', value)}
-                  max={1}
-                  min={0}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  200-350Hz帯域を調整して声の厚みを追加
-                </p>
-              </div>
-
-              {/* Vocal - 中域の明瞭さ */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium">Vocal - 中域の明瞭さ</label>
-                  <span className="text-sm text-muted-foreground">
-                    {Math.round(currentParams.vocal * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  value={[currentParams.vocal]}
-                  onValueChange={([value]) => handleParamChange('vocal', value)}
-                  max={1}
-                  min={0}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  2-4kHz帯域を調整して歌声の通りを改善
-                </p>
-              </div>
-
-              {/* Punch - アタック感 */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium">Punch - アタック感</label>
-                  <span className="text-sm text-muted-foreground">
-                    {Math.round(currentParams.punch * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  value={[currentParams.punch]}
-                  onValueChange={([value]) => handleParamChange('punch', value)}
-                  max={1}
-                  min={0}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  楽器とのバランスを調整してアタック感を強化
-                </p>
-              </div>
-
-              {/* Width - ステレオ幅 */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium">Width - ステレオ幅</label>
-                  <span className="text-sm text-muted-foreground">
-                    {Math.round(currentParams.width * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  value={[currentParams.width]}
-                  onValueChange={([value]) => handleParamChange('width', value)}
-                  max={1}
-                  min={0}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  ステレオイメージの広がりを調整
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* サイドバー - プレビュー・書き出し */}
-        <div className="space-y-6">
-          {/* プレビュー */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">プレビュー</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                onClick={generatePreview}
-                disabled={isGeneratingPreview}
-                className="w-full"
-              >
-                {isGeneratingPreview ? '生成中...' : '30秒プレビュー'}
-              </Button>
-
-              {previewUrl && (
-                <div className="space-y-3">
-                  <audio
-                    controls
-                    src={previewUrl}
-                    className="w-full"
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                  />
-                  
-                  <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as any)}>
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="AI_BASE">AI適用値</TabsTrigger>
-                      <TabsTrigger value="USER_EDIT">調整後</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground">
-                <p>• 15-45秒区間の30秒プレビュー</p>
-                <p>• A/B比較機能</p>
-                <p>• クレジット消費なし</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 書き出し */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">最終書き出し</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>フォーマット:</span>
-                  <Badge variant="outline">MP3 320kbps</Badge>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>LUFS:</span>
-                  <span>-14.0</span>
-                </div>
-              </div>
-
-              <Button
-                onClick={exportFinal}
-                disabled={isExporting}
-                className="w-full"
-                size="lg"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                {isExporting ? '書き出し中...' : 'MP3で書き出し'}
-              </Button>
-
-              {exportUrl && (
-                <div className="space-y-2">
-                  <Badge variant="default" className="w-full justify-center">
-                    書き出し完了
+    <TooltipProvider>
+      <div className="min-h-screen bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(16,185,129,0.08),transparent),linear-gradient(180deg,#0b0c0e,#0e0f12)] text-zinc-200">
+        <div className="mx-auto max-w-5xl px-4 py-8">
+          {/* ヘッダー */}
+          <header className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-bold text-white">MIXAI Lite</h1>
+                <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
+                  5軸調整
+                </Badge>
+                {job?.ai_params && (
+                  <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400">
+                    AI解析済み
                   </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => window.open(exportUrl, '_blank')}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    ダウンロード
-                  </Button>
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground">
-                <p>• フル品質書き出し</p>
-                <p>• 10件/日まで無料</p>
-                <p>• クレジット消費なし</p>
+                )}
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-4 text-sm text-zinc-400">
+                <span>曲長: {job?.duration_s ? `${Math.floor(job.duration_s / 60)}:${String(job.duration_s % 60).padStart(2, '0')}` : '--:--'}</span>
+                <span>LUFS: {job?.measured_lufs ? `${job.measured_lufs.toFixed(1)}` : '--'}</span>
+                <span>TP: {job?.true_peak ? `${job.true_peak.toFixed(1)}` : '--'}</span>
+              </div>
+            </div>
+          </header>
+
+          {/* プレビュー編集エリア */}
+          <PreviewEditOnly />
+
+          {/* 音質調整パネル (Lite版カスタマイズ) */}
+          <div className="mt-8">
+            <MixTonePanelOnly
+              initialMix={mixParams}
+              onCommit={handleMixCommit}
+              onReset={handleMixReset}
+            />
+          </div>
+
+          {/* ハモリ・コントロール・書き出しセクション */}
+          <div className="mt-8">
+            <Card className="border-zinc-700 bg-[#0e0f12]">
+              <CardContent className="p-6 space-y-6">
+                {/* ハモリセクション */}
+                <div>
+                  <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <Volume2 className="h-5 w-5" />
+                    ハモリ追加
+                    <span className="text-xs text-orange-400 font-normal">(確定時 +0.5C)</span>
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    {HARMONY_OPTIONS.map(option => (
+                      <Button
+                        key={option.key}
+                        variant={harmonyChoice === option.key ? "default" : "outline"}
+                        className="flex flex-col h-auto py-3"
+                        onClick={() => setHarmonyChoice(option.key as any)}
+                      >
+                        <span className="font-medium">{option.label}</span>
+                        <span className="text-xs opacity-80">{option.description}</span>
+                      </Button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-4 mb-4">
+                    <label className="text-sm text-zinc-300">ハモリ音量:</label>
+                    <div className="flex-1 max-w-xs">
+                      <Slider
+                        value={[harmonyLevel * 100]}
+                        onValueChange={([v]) => setHarmonyLevel(v / 100)}
+                        disabled={harmonyChoice === 'none'}
+                      />
+                    </div>
+                    <span className="text-xs text-zinc-400 w-16">{(harmonyLevel * 100).toFixed(0)}%</span>
+                  </div>
+
+                  {harmonyChoice !== 'none' && (
+                    <Button 
+                      onClick={handleConfirmHarmony}
+                      disabled={isApplyingHarmony}
+                      className="bg-orange-500 hover:bg-orange-600"
+                    >
+                      <Wand2 className="mr-2 h-4 w-4" />
+                      {isApplyingHarmony ? 'ハモリ生成中...' : 'ハモリを確定 (+0.5C)'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* コントロール */}
+                <div className="border-t border-zinc-700 pt-6">
+                  <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={abComparison}
+                        onCheckedChange={setAbComparison}
+                      />
+                      <label className="text-sm text-zinc-300">A/B比較</label>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-zinc-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          原音とミックス後の比較再生
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={preMaster}
+                        onCheckedChange={setPreMaster}
+                      />
+                      <label className="text-sm text-zinc-300">マスタリング前</label>
+                    </div>
+
+                    <Button 
+                      onClick={handlePreview}
+                      disabled={isGeneratingPreview}
+                      className="bg-emerald-500 hover:bg-emerald-600"
+                    >
+                      <Play className="mr-2 h-4 w-4" />
+                      {isGeneratingPreview ? '生成中...' : '30秒プレビュー'}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 書き出し */}
+                <div className="border-t border-zinc-700 pt-6">
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-lg font-medium text-white">書き出し</h3>
+                    <Button 
+                      onClick={() => handleExport('mp3')}
+                      disabled={isExporting}
+                      className="bg-blue-500 hover:bg-blue-600"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      {isExporting ? '書き出し中...' : 'MP3'}
+                    </Button>
+                    <Button 
+                      onClick={() => handleExport('wav')}
+                      disabled={isExporting}
+                      variant="outline"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      WAV
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }

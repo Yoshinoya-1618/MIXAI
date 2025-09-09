@@ -22,6 +22,7 @@ export type AudioProcessingParams = {
     space?: number          // 0.0 to 0.45: 空間調整
     brightness?: number     // -2.5 to +2.5: 明るさ調整
   }
+  useTrimmedInst?: boolean  // トリミング済みinstを使用するかどうか
 }
 
 export type AudioProcessingResult = {

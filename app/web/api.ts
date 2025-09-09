@@ -1,8 +1,7 @@
 "use client"
-import { createBrowserSupabase } from '../../storage/supabaseClient'
+import { supabase } from '../../lib/supabase'
 
 export async function getAccessToken() {
-  const supabase = createBrowserSupabase()
   const { data } = await supabase.auth.getSession()
   return data.session?.access_token || null
 }

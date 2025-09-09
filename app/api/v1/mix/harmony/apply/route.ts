@@ -14,18 +14,18 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = await authenticateUser(request)
     const userId = user.id
-    const { jobId, choice, level_db = -6 } = await request.json()
+    const { jobId, harmonyChoice, harmonyLevel = -6 } = await request.json()
 
-    if (!jobId || !choice) {
-      throw new ApiError(400, 'jobId and choice are required')
+    if (!jobId || !harmonyChoice) {
+      throw new ApiError(400, 'jobId and harmonyChoice are required')
     }
 
-    const validChoices = ['up_m3', 'down_m3', 'p5', 'up_down', 'none']
-    if (!validChoices.includes(choice)) {
+    const validChoices = ['up_m3', 'down_m3', 'perfect_5th', 'up_down', 'none']
+    if (!validChoices.includes(harmonyChoice)) {
       throw new ApiError(400, 'Invalid harmony choice')
     }
 
-    console.log(`🎵 Applying harmony ${choice} for job ${jobId}`)
+    console.log(`🎵 Applying harmony ${harmonyChoice} for job ${jobId}`)
 
     // ジョブの存在確認
     const { data: job } = await supabase
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // プラン別課金
     let creditsCost = 0
-    if (choice !== 'none') {
+    if (harmonyChoice !== 'none') {
       if (planCode === 'lite') {
         creditsCost = 0.5 // Liteプランのみハモリ確定で0.5C消費
       } else {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           event: 'consume',
           credits: -creditsCost,
-          reason: `Harmony application: ${choice}`,
+          reason: `Harmony application: ${harmonyChoice}`,
           job_id: jobId
         })
     }
@@ -84,24 +84,31 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('jobs')
       .update({
-        harmony_choice: choice,
-        harmony_level_db: level_db,
+        harmony_choice: harmonyChoice,
+        harmony_level_db: harmonyLevel,
+        harmony_generated: harmonyChoice !== 'none',
         updated_at: new Date().toISOString()
       })
       .eq('id', jobId)
 
-    console.log(`✅ Harmony applied for job ${jobId}: ${choice} at ${level_db}dB`)
+    console.log(`✅ Harmony applied for job ${jobId}: ${harmonyChoice} at ${harmonyLevel}dB`)
+
+    // 模擬的なプレビューURL生成
+    const previewUrl = harmonyChoice !== 'none' 
+      ? `https://temp-harmony.supabase.co/users/${userId}/jobs/${jobId}/harmony_${harmonyChoice}_${Date.now()}.mp3`
+      : null
 
     return Response.json({
       success: true,
-      harmony_choice: choice,
-      harmony_level_db: level_db,
+      previewUrl,
+      harmony_choice: harmonyChoice,
+      harmony_level_db: harmonyLevel,
       credits_delta: creditsCost > 0 ? -creditsCost : undefined,
       plan_code: planCode,
       meta: {
         job_id: jobId,
-        applied_choice: choice,
-        level_db: level_db
+        applied_choice: harmonyChoice,
+        level_db: harmonyLevel
       }
     })
 

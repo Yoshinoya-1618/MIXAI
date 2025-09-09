@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { apiFetch } from '../../web/api'
 import Header from '../../../components/common/Header'
-import StyleTokens from '../../../components/common/StyleTokens'
 import Footer from '../../../components/common/Footer'
 
 interface Props { params: { id: string } }
@@ -262,6 +261,163 @@ export default function ResultPage({ params }: Props) {
 // =========================================
 // Shared Components
 // =========================================
+
+function StyleTokens() {
+  return (
+    <style jsx global>{`
+      :root {
+        --primary: #6366F1;
+        --secondary: #EC4899;
+        --accent: #8B5CF6;
+        --bg: #F7F7F9;
+        --surface: #FFFFFF;
+        --text: #111827;
+        --text-secondary: #6B7280;
+        --border: rgba(203, 213, 225, 0.7);
+        --error: #EF4444;
+        --success: #10B981;
+        --warning: #F59E0B;
+        --radius: 12px;
+        --radius-sm: 8px;
+        --radius-lg: 16px;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+        --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .glass-subtle {
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .gradient-primary {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+      }
+
+      .gradient-secondary {
+        background: linear-gradient(135deg, var(--secondary), #F59E0B);
+      }
+
+      .text-gradient {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: white;
+        padding: 12px 24px;
+        border-radius: var(--radius);
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-xl);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        background: white;
+        color: var(--text);
+        padding: 12px 24px;
+        border-radius: var(--radius);
+        font-weight: 600;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow);
+      }
+
+      .btn-secondary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn-secondary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .input-field {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 16px;
+        transition: var(--transition);
+        background: white;
+      }
+
+      .input-field:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      }
+
+      .label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      .animate-fadeIn {
+        animation: fadeIn 0.6s ease-out;
+      }
+
+      .animate-slideUp {
+        animation: slideUp 0.6s ease-out;
+      }
+
+      .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+    `}</style>
+  )
+}
 
 function AuroraBackground() {
   return (

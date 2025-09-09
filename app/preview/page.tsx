@@ -59,6 +59,7 @@ function PreviewContent() {
   const [loading, setLoading] = useState(true)
   const [previewMode, setPreviewMode] = useState<'before' | 'after'>('before')
   const [selectedHarmonyPattern, setSelectedHarmonyPattern] = useState<'upper' | 'lower' | 'fifth'>('upper')
+  const [selectedTheme, setSelectedTheme] = useState<string>('')
 
   useEffect(() => {
     if (!jobId) return
@@ -120,8 +121,12 @@ function PreviewContent() {
         />
       </div>
 
-      {/* プリセット選択 */}
-      <PresetSelector jobId={jobId!} />
+      {/* テーマ選択 (MIX前) */}
+      <ThemeSelector 
+        jobId={jobId!} 
+        selectedTheme={selectedTheme}
+        onThemeChange={setSelectedTheme}
+      />
 
       {/* ハモリパターン選択 (AI生成の場合) */}
       {job.harmony_mode === 'generate' && (
@@ -193,7 +198,19 @@ function PreviewContent() {
         </button>
         <button 
           className="btn-primary px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all" 
-          onClick={() => jobId && router.push(`/result?job=${jobId}&harmony=${selectedHarmonyPattern}`)}
+          onClick={() => {
+            if (!jobId || !selectedTheme) {
+              alert('テーマを選択してください')
+              return
+            }
+            // テーマを含めてMIX開始画面へ遷移
+            const params = new URLSearchParams({
+              job: jobId,
+              harmony: selectedHarmonyPattern,
+              theme: selectedTheme
+            })
+            router.push(`/processing?${params.toString()}`)
+          }}
         >
           <div className="flex items-center gap-2">
             <PlayIcon className="w-5 h-5" />
@@ -341,28 +358,30 @@ function PreviewPlayer({
   )
 }
 
-function PresetSelector({ jobId }: { jobId: string }) {
-  const [presets, setPresets] = useState<any>(null)
-  const [selectedPreset, setSelectedPreset] = useState<string>('')
-  const [microAdjust, setMicroAdjust] = useState({
-    forwardness: 0,
-    space: 0.2,
-    brightness: 0.5
-  })
+function ThemeSelector({ 
+  jobId, 
+  selectedTheme,
+  onThemeChange 
+}: { 
+  jobId: string;
+  selectedTheme: string;
+  onThemeChange: (theme: string) => void;
+}) {
+  const [themes, setThemes] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // プリセット情報取得
+  // テーマ情報取得
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiFetch('/api/v1/presets')
+        const res = await apiFetch('/api/v1/themes')
         if (res.ok) {
           const data = await res.json()
-          setPresets(data)
-          // デフォルトプリセットを設定
-          const defaultPreset = getDefaultPresetForPlan(data.planCode)
-          setSelectedPreset(defaultPreset)
+          setThemes(data)
+          // デフォルトテーマを設定
+          const defaultTheme = getDefaultThemeForPlan(data.planCode)
+          onThemeChange(defaultTheme)
         }
       } finally {
         setLoading(false)
@@ -370,29 +389,21 @@ function PresetSelector({ jobId }: { jobId: string }) {
     })()
   }, [])
 
-  const handlePresetChange = (presetKey: string) => {
-    setSelectedPreset(presetKey)
-    // プリセット変更時に設定を保存
-    saveSettings(presetKey, microAdjust)
+  const handleThemeChange = (themeKey: string) => {
+    onThemeChange(themeKey)
+    // テーマ変更時に設定を保存
+    saveSettings(themeKey)
   }
 
-  const handleMicroAdjustChange = (key: string, value: number) => {
-    const newAdjust = { ...microAdjust, [key]: value }
-    setMicroAdjust(newAdjust)
-    // リアルタイム保存
-    saveSettings(selectedPreset, newAdjust)
-  }
-
-  const saveSettings = async (presetKey: string, adjust: any) => {
-    if (!presetKey || saving) return
+  const saveSettings = async (themeKey: string) => {
+    if (!themeKey || saving) return
     
     setSaving(true)
     try {
       await apiFetch(`/api/v1/jobs/${jobId}/settings`, {
         method: 'PATCH',
         body: JSON.stringify({
-          preset_key: presetKey,
-          micro_adjust: adjust
+          theme_key: themeKey
         })
       })
     } catch (error) {
@@ -402,12 +413,18 @@ function PresetSelector({ jobId }: { jobId: string }) {
     }
   }
 
-  const getDefaultPresetForPlan = (planCode: string) => {
+  const getDefaultThemeForPlan = (planCode: string) => {
     switch (planCode) {
-      case 'lite': return 'clean_light'
-      case 'standard': return 'wide_pop'  
-      case 'creator': return 'studio_shine'
-      default: return 'clean_light'
+      case 'freetrial':
+      case 'prepaid':
+      case 'lite': 
+        return 'clean_light'
+      case 'standard': 
+        return 'wide_pop'  
+      case 'creator': 
+        return 'studio_shine'
+      default: 
+        return 'clean_light'
     }
   }
 
@@ -426,13 +443,13 @@ function PresetSelector({ jobId }: { jobId: string }) {
     )
   }
 
-  if (!presets) return null
+  if (!themes) return null
 
   return (
     <div className="glass-card p-8">
       <h2 className="font-semibold text-gray-900 mb-6 flex items-center gap-2">
         <SettingsIcon className="w-5 h-5 text-indigo-600" />
-        音質プリセット選択
+        MIXテーマ選択
         {saving && <span className="text-sm text-blue-600 ml-2">保存中...</span>}
       </h2>
 
@@ -440,41 +457,60 @@ function PresetSelector({ jobId }: { jobId: string }) {
       <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/50">
         <div className="flex items-center gap-2 text-sm text-blue-700">
           <CrownIcon className="w-4 h-4" />
-          <span>現在のプラン: <strong>{presets.planCode.toUpperCase()}</strong></span>
-          <span className="ml-4">利用可能プリセット: <strong>{getTotalPresets(presets.presets)}種</strong></span>
+          <span>現在のプラン: <strong>{themes.planName}</strong></span>
+          <span className="ml-4">利用可能テーマ: <strong>{getTotalThemes(themes.themes)}種</strong></span>
         </div>
       </div>
 
-      {/* カテゴリ別プリセット */}
+      {/* 処理精度情報 */}
+      <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border border-emerald-200/50">
+        <div className="flex items-center gap-2 text-sm text-emerald-700">
+          <SparklesIcon className="w-4 h-4" />
+          <span>処理精度: <strong>{themes.processingAccuracy}</strong></span>
+          <span className="text-xs ml-2 text-emerald-600">{themes.accuracyDescription}</span>
+        </div>
+      </div>
+
+      {/* カテゴリ別テーマ */}
       <div className="space-y-6">
-        {Object.entries(presets.presets).map(([category, categoryPresets]) => 
-          (categoryPresets as any[]).length > 0 && (
+        {Object.entries(themes.themes).map(([category, categoryThemes]) => 
+          (categoryThemes as any[]).length > 0 && (
             <div key={category}>
               <h3 className="text-sm font-medium text-gray-700 mb-3 uppercase tracking-wide">
-                {category} ({(categoryPresets as any[]).length}種)
+                {getCategoryDisplayName(category)} ({(categoryThemes as any[]).length}種)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(categoryPresets as any[]).map((preset) => (
+                {(categoryThemes as any[]).map((theme) => (
                   <button
-                    key={preset.key}
-                    onClick={() => handlePresetChange(preset.key)}
+                    key={theme.key}
+                    onClick={() => handleThemeChange(theme.key)}
                     className={clsx(
-                      "p-4 rounded-xl border-2 transition-all text-left",
-                      selectedPreset === preset.key
+                      "p-4 rounded-xl border-2 transition-all text-left relative overflow-hidden",
+                      selectedTheme === theme.key
                         ? "border-indigo-500 bg-indigo-50/80 shadow-lg"
                         : "border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30"
                     )}
                   >
+                    {/* 選択状態のアイコン */}
                     <div className="flex items-center gap-3 mb-2">
                       <div className={clsx(
-                        "w-4 h-4 rounded-full border-2",
-                        selectedPreset === preset.key
+                        "w-4 h-4 rounded-full border-2 transition-all",
+                        selectedTheme === theme.key
                           ? "bg-indigo-500 border-indigo-500"
                           : "border-gray-300"
                       )} />
-                      <div className="font-medium text-gray-900">{preset.displayName}</div>
+                      <div className="font-medium text-gray-900">{theme.displayName}</div>
                     </div>
-                    <div className="text-sm text-gray-600">{preset.description}</div>
+                    <div className="text-sm text-gray-600">{theme.description}</div>
+                    
+                    {/* カテゴリ別の装飾 */}
+                    {category === 'studio' && (
+                      <div className="absolute top-1 right-1">
+                        <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded-full font-medium">
+                          PRO
+                        </span>
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
@@ -483,46 +519,36 @@ function PresetSelector({ jobId }: { jobId: string }) {
         )}
       </div>
 
-      {/* 微調整（Standard/Creator のみ） */}
-      {presets.features.microAdjust && (
-        <div className="mt-8 pt-6 border-t border-gray-200/50">
-          <h3 className="font-medium text-gray-900 mb-4">微調整</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <MicroAdjustSlider
-              label="前後感"
-              value={microAdjust.forwardness}
-              min={-15}
-              max={15}
-              step={1}
-              unit=""
-              description="ボーカルの前後感を調整"
-              onChange={(value) => handleMicroAdjustChange('forwardness', value)}
-            />
-            <MicroAdjustSlider
-              label="空間"
-              value={microAdjust.space}
-              min={0}
-              max={0.45}
-              step={0.05}
-              unit=""
-              description="リバーブの深さを調整"
-              onChange={(value) => handleMicroAdjustChange('space', value)}
-            />
-            <MicroAdjustSlider
-              label="明るさ"
-              value={microAdjust.brightness}
-              min={-2.5}
-              max={2.5}
-              step={0.1}
-              unit="dB"
-              description="高域の明るさを調整"
-              onChange={(value) => handleMicroAdjustChange('brightness', value)}
-            />
+      {/* テーマ選択の説明 */}
+      <div className="mt-8 p-4 rounded-lg bg-gradient-to-r from-gray-50/80 to-gray-100/50 border border-gray-200/50">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5">
+            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+            </svg>
+          </div>
+          <div className="text-sm text-gray-600">
+            <p className="font-medium text-gray-700 mb-1">MIXテーマについて</p>
+            <p>選択したテーマに基づいて、AI解析とMIX処理が行われます。</p>
+            <p className="mt-1">テーマは楽曲の雰囲気やジャンルに合わせてお選びください。</p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
+}
+
+function getCategoryDisplayName(category: string): string {
+  switch (category) {
+    case 'basic': return 'ベーシック'
+    case 'pop': return 'ポップ'
+    case 'studio': return 'スタジオ'
+    default: return category.toUpperCase()
+  }
+}
+
+function getTotalThemes(themes: any) {
+  return Object.values(themes).flat().length
 }
 
 function MicroAdjustSlider({
@@ -564,9 +590,6 @@ function MicroAdjustSlider({
   )
 }
 
-function getTotalPresets(presets: any) {
-  return Object.values(presets).flat().length
-}
 
 // =========================================
 // Shared Components
@@ -580,6 +603,9 @@ function StyleTokens() {
         --indigo: ${COLORS.indigo};
         --blue: ${COLORS.blue};
         --magenta: ${COLORS.magenta};
+        --brand: #6366F1;
+        --brandAlt: #9B6EF3;
+        --accent: ${COLORS.blue};
       }
       
       .glass-card {
