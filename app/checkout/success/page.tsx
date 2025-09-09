@@ -2,6 +2,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiFetch } from '../../web/api'
+import Header from '../../../components/common/Header'
 
 const COLORS = {
   indigo: '#6366F1',
@@ -17,6 +18,8 @@ function clsx(...a: Array<string | false | null | undefined>) {
 function CheckoutSuccessContent() {
   const [loading, setLoading] = useState(true)
   const [sessionData, setSessionData] = useState<any>(null)
+  const [showBoost, setShowBoost] = useState(false)
+  const [isTrial, setIsTrial] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
@@ -29,6 +32,20 @@ function CheckoutSuccessContent() {
 
   const fetchSessionDetails = async () => {
     try {
+      // Check if this is a trial session
+      const trialRes = await apiFetch('/api/trial/status')
+      if (trialRes.ok) {
+        const trialData = await trialRes.json()
+        if (trialData.isTrial && trialData.creatorBoostActive) {
+          setShowBoost(true)
+          setIsTrial(true)
+          // Show boost modal for 3 seconds then redirect
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 3000)
+        }
+      }
+      
       const res = await apiFetch(`/api/v1/payments/session/${sessionId}`)
       if (res.ok) {
         const data = await res.json()
@@ -54,11 +71,43 @@ function CheckoutSuccessContent() {
     )
   }
 
+  // Creator Boost modal for trial users
+  if (showBoost) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
+        <StyleTokens />
+        <div className="text-center animate-fade-in">
+          <div className="w-20 h-20 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+            <SparklesIcon className="w-10 h-10 text-white" />
+          </div>
+          
+          <h1 className="text-3xl font-bold mb-4">
+            🎉 無料トライアル開始！
+          </h1>
+          
+          <div className="bg-white rounded-2xl p-6 max-w-md mx-auto shadow-lg mb-6">
+            <h2 className="text-xl font-semibold mb-3">
+              Creator Boost 48時間プレゼント！
+            </h2>
+            <p className="text-gray-600">
+              今から48時間、Creatorプランの全機能をお試しいただけます。
+              最高の体験をお楽しみください！
+            </p>
+          </div>
+          
+          <p className="text-gray-600">
+            まもなくダッシュボードへ移動します...
+          </p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-[var(--bg)] text-gray-900">
       <StyleTokens />
       <AuroraBackground />
-      <Header />
+      <Header showMainNavigation={false} />
       
       <div className="relative mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
@@ -67,12 +116,15 @@ function CheckoutSuccessContent() {
           </div>
           
           <h1 className="font-semibold tracking-[-0.02em] text-[32px] sm:text-[40px] leading-[1.25] mb-4">
-            お支払い完了！
+            {isTrial ? '無料トライアル開始！' : 'お支払い完了！'}
           </h1>
           
           <p className="text-lg text-gray-700 max-w-2xl mx-auto">
-            ご利用いただき、ありがとうございます。<br />
-            プランの変更が完了しました。
+            {isTrial ? (
+              <>7日間の無料トライアルが開始されました。<br />全ての機能をお試しください。</>
+            ) : (
+              <>ご利用いただき、ありがとうございます。<br />プランの変更が完了しました。</>
+            )}
           </p>
         </div>
 
@@ -203,6 +255,9 @@ function StyleTokens() {
         --indigo: ${COLORS.indigo};
         --blue: ${COLORS.blue};
         --magenta: ${COLORS.magenta};
+        --brand: #6366F1;
+        --brandAlt: #9B6EF3;
+        --accent: ${COLORS.blue};
       }
       
       .glass-card {
@@ -241,33 +296,6 @@ function AuroraBackground() {
   )
 }
 
-function Header() {
-  return (
-    <header className="relative border-b border-white/10 bg-white/40 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">M</span>
-              </div>
-              <span className="font-bold text-xl text-gray-900">MIXAI</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
-              ログイン
-            </button>
-            <button className="btn-primary px-6 py-2 text-sm">
-              無料で始める
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-  )
-}
 
 // =========================================
 // Icons

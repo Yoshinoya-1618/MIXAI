@@ -47,9 +47,7 @@ export async function GET(req: NextRequest) {
         updated_at,
         instrumental_path,
         vocal_path,
-        harmony_path,
-        result_path,
-        preset_key
+        result_path
       `)
       .eq('user_id', uid)
       .order('created_at', { ascending: false })

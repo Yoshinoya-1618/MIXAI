@@ -162,8 +162,8 @@ export function cleanupExpiredSessions(): void {
 }
 
 // ページ離脱時の警告
-export function setupBeforeUnloadWarning(hasUnsavedChanges: boolean): void {
-  if (typeof window === 'undefined') return;
+export function setupBeforeUnloadWarning(hasUnsavedChanges: boolean): () => void {
+  if (typeof window === 'undefined') return () => {};
   
   const handler = (event: BeforeUnloadEvent) => {
     if (hasUnsavedChanges) {

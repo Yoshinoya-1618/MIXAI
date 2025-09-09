@@ -1,430 +1,190 @@
-export default function MIXAIHomePreview() {
-  return (
-    <main className="min-h-screen text-gray-900 bg-[var(--bg)]">
-      <StyleTokens />
-      <Header />
-      <Hero />
-      <Demo />
-      <Teasers />
-      <Upload />
-      <Benefits />
-      <HowItWorks />
-      <Pricing />
-      <Footer />
-    </main>
-  )
-}
+0) 原則（全プラン共通）
 
-// =============================================
-// Tokens / Utilities
-// =============================================
-function StyleTokens() {
-  return (
-    <style>{`
-      :root{ --brand:#6D5EF7; --brandAlt:#9B6EF3; --accent:#22D3EE; --bg:#F7F7FA; }
-      .btn-primary{ background:linear-gradient(135deg,var(--brand),var(--accent)); color:#fff; border-radius:12px; padding:10px 16px; font-weight:600; }
-      .btn-ghost{ background:#fff; border:1px solid #EAEAF0; color:#111827; border-radius:12px; padding:10px 14px; font-weight:600; }
-      .card{ background:#fff; border:1px solid #EEF0F4; border-radius:12px; box-shadow:0 6px 18px rgba(17,24,39,.04); }
-      /* Hero specific */
-      .btn-hero{ background:#fff; color:#1f2937; border-radius:12px; padding:10px 16px; font-weight:700; box-shadow:0 6px 16px rgba(0,0,0,.08); }
-      .btn-hero-ghost{ background:transparent; color:#fff; border:1px solid rgba(255,255,255,.6); border-radius:12px; padding:10px 14px; font-weight:700; }
-      .card-hero{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.28); border-radius:12px; backdrop-filter:blur(8px); padding:14px; }
-    `}</style>
-  )
-}
-const cx = (...a) => a.filter(Boolean).join(" ")
-const scrollToId = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+ページ到達時に 未解析なら解析→AI MIX適用（冪等）
 
-// =============================================
-// Header / Footer
-// =============================================
-function Header(){
-  return (
-    <header className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-gray-100">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <Logo />
-        <nav className="hidden md:flex items-center gap-6 text-sm">
-          <A>料金</A>
-          <A>使い方</A>
-          <A>特長</A>
-          <A>よくある質問</A>
-          <A>ログイン</A>
-        </nav>
-        <div className="hidden sm:block">
-          <button className="btn-primary" onClick={()=>scrollToId('upload')}>無料で試す</button>
-        </div>
-      </div>
-    </header>
-  )
-}
-function Footer(){
-  return (
-    <footer className="border-t bg-white">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 text-xs text-gray-700">
-        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
-          <FooterCol title="Help" items={[["ヘルプセンター","#"],["使い方ガイド","#"],["FAQ","#"],["制限/対応フォーマット","#"]]} />
-          <FooterCol title="ポリシー" items={[["利用規約","#"],["プライバシー","#"],["クッキー","#"],["コンテンツ","#"],["権利侵害の申告","#"]]} />
-          <FooterCol title="販売情報" items={[["特商法表記","#"],["返金・キャンセル","#"],["支払い・領収書","#"]]} />
-          <FooterCol title="安全と連絡" items={[["セキュリティ","#"],["データ削除リクエスト","#"],["通報","#"],["お問い合わせ","#"],["運営者情報","#"]]} />
-        </div>
-        <div className="mt-8 flex items-center justify-between text-[11px] text-gray-500">
-          <div className="flex items-center gap-2"><Logo /><span>© {new Date().getFullYear()} MIXAI</span></div>
-          <div className="flex gap-3">
-            <A href="#">ステータス</A>
-            <A href="#">更新情報</A>
-          </div>
-        </div>
-      </div>
-    </footer>
-  )
-}
-function A({ href, onClick, children }){ return (<a href={href ?? '#'} onClick={onClick} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] rounded px-1 py-1">{children}</a>) }
-function Logo(){
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-6 w-6 rounded-full grid place-items-center bg-gradient-to-br from-[var(--brand)] via-[var(--brandAlt)] to-[var(--accent)]">
-        <IconMic className="w-3.5 h-3.5 text-white" />
-      </div>
-      <span className="font-semibold">MIXAI</span>
-    </div>
-  )
-}
+画面内で AB比較（A=AI適用直後 / B=ユーザー編集）、-14 LUFS正規化
 
-// =============================================
-// Hero
-// =============================================
-function Hero(){
-  return (
-    <section className="relative overflow-hidden">
-      <HeroBG />
-      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-16 text-center">
-        <h1 className="text-white text-[34px] sm:text-[44px] font-semibold leading-tight tracking-tight">歌声が、主役になる。</h1>
-        <p className="mt-4 max-w-2xl mx-auto text-[14.5px] sm:text-[15.5px] text-white/90">
-          歌ってみた動画を、もっと気軽に。伴奏と歌声を入れるだけで、自然に整えます。
-        </p>
-        <div className="mt-6 flex items-center justify-center gap-3">
-          <button className="btn-hero" onClick={()=>scrollToId('upload')}>
-            <span className="inline-flex items-center gap-1.5"><IconPlaySmall/>無料で始める</span>
-          </button>
-          <button className="btn-hero-ghost" onClick={()=>scrollToId('demo')}>デモを聴く</button>
-        </div>
+スナップショット：AI_BASE / USER_EDIT / LAST_EXPORT
 
-        <div className="mt-8 grid sm:grid-cols-3 gap-4">
-          <HeroFeature icon={<IconDoc className="text-white"/>} title="多様な音声形式" desc="あなたに最適な音声形式でファイルを変換できます" />
-          <HeroFeature icon={<IconSpark className="text-white"/>} title="AI技術で高品質変換" desc="最新の技術により自然で魅力的な歌声を実現" />
-          <HeroFeature icon={<IconUsers className="text-white"/>} title="様々なシーンで活用" desc="YouTube、TikTok、商用利用まで幅広く対応" />
-        </div>
-      </div>
-    </section>
-  )
-}
-function HeroBG(){
-  return (
-    <div aria-hidden className="absolute inset-0 z-0">
-      {/* solid gradient like reference */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-[#6D5EF7] via-[#8E66F7] to-[#22D3EE]" />
-      {/* soft glows */}
-      <div className="absolute -top-24 -right-24 w-[520px] h-[520px] rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute -bottom-24 -left-24 w-[460px] h-[460px] rounded-full bg-white/10 blur-3xl" />
-    </div>
-  )
-}
+クレジット消費：0（解析・プレビュー・書き出し・参照曲解析）
 
-function HeroFeature({icon, title, desc}){
-  return (
-    <div className="card-hero">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-lg bg-white/15 grid place-items-center">{icon}</div>
-        <div>
-          <div className="font-medium text-white">{title}</div>
-          {desc ? <p className="text-[13px] text-white/85">{desc}</p> : null}
-        </div>
-      </div>
-    </div>
-  )
-}
-function IconPlaySmall(props){
-  return (
-    <svg {...props} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-[color:var(--brand)]"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-  )
-}
-function HeroCard(){ return null }
-function Pill({children, outline}){
-  return <span className={cx('px-2.5 py-1 rounded-full text-xs font-medium', outline? 'bg-white border border-gray-200':'bg-[var(--brand)]/10 text-gray-800 border border-[var(--brand)]/15')}>{children}</span>
-}
-function StepTile({n, title}){
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3">
-      <div className="text-[11px] text-gray-600">STEP {n}</div>
-      <div className="mt-1 font-medium">{title}</div>
-    </div>
-  )
-}
+1ページ完結：/mix/<plan>/<jobId>
 
-// =============================================
-// Demo
-// =============================================
-function Demo(){
-  return (
-    <section id="demo" className="py-12 sm:py-16">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-2xl font-semibold">まずは耳で。違いは短い秒数でも伝わる。</h2>
-        <div className="mt-6 card p-5 sm:p-6">
-          <div className="grid md:grid-cols-2 gap-4">
-            <AudioCard label="Before" />
-            <AudioCard label="After" tag="AI化" />
-          </div>
-          <div className="mt-5"><button className="btn-primary" onClick={()=>scrollToId('upload')}>無料で試す</button></div>
-        </div>
-      </div>
-    </section>
-  )
-}
-function AudioCard({label, tag}){
-  return (
-    <div className="rounded-xl border p-4 bg-white">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-medium text-gray-700">{label}</div>
-        <div className="flex items-center gap-2">
-          {tag && <span className="px-2 py-[3px] rounded-md text-[11px] bg-[var(--brand)]/10 border border-[var(--brand)]/20">{tag}</span>}
-          <MiniBars />
-        </div>
-      </div>
-      {/* Audio要素の実音源は省略（Canvas動作安定のため） */}
-      <div className="h-10 grid place-items-center text-[11px] text-gray-500 bg-gray-50 rounded">サンプル音源（省略）</div>
-    </div>
-  )
-}
-function MiniBars(){
-  return (
-    <div aria-hidden className="flex gap-[3px]">
-      {Array.from({length:24}).map((_,i)=> (
-        <div key={i} className="w-[3px] rounded-sm bg-gradient-to-t from-[var(--brand)]/40 via-[var(--brandAlt)]/40 to-[var(--accent)]/40" style={{height: `${10 + (i % 6) * 4}px`}} />
-      ))}
-    </div>
-  )
-}
+1) 機能マトリクス（差別化）
+項目	Lite	Standard	Creator
+目標品質	〜80%	80–90%	+90%（参照マッチ）
+ノブ数	5軸	6軸（+Clarity）	7軸（+Presence/Exciter）
+ノブ軸	Air / Body / Punch / Width / Vocal	Air / Body / Punch / Width / Vocal / Clarity	Air / Body / Punch / Width / Vocal / Clarity / Presence
+ジャンルターゲット	—	あり（J-Pop/ROCK/EDM/Ballad）	あり＋参照曲自動マッチ
+参照曲	—	手動AB再生のみ（比較視聴）	解析＋自動マッチ（トーナル/PLR/ステレオ）
+ダイナミクス	MBコンプ3バンド	4バンド	5バンド（可変クロス）
+De-esser	単帯域	マルチ帯域	マルチ帯域＋sibilant検出強化
+Ducking	固定（在時1dB）	解析連動（在時1–2dB）	文節/母音連動（0.5–2.5dB）
+ステレオ	<120Hz Mono, 軽いSide制限	Side帯域制御＋アパーチャ微調整	自動アパーチャ最適
+OS(オーバーサンプル)	4x	8x	16x
+loudnorm	2パス（-14/-11/-9）	2パス＋TP管理強化	2パス＋マージン最適化
+書き出し	WAV/MP3	+FLAC	+32float / Stem任意（将来枠）
+詳細編集	—	一部（閾値/タイム定数）	専門パネル（MB/DynEQ/De-esser/Ducking帯域）
+局所最適化	—	—	サビ/ブレイク微調整
+2) UI 詳細仕様（ページ単位）
+2.1 Lite：/mix/lite/[jobId]
 
-// =============================================
-// Teasers
-// =============================================
-function Teasers(){
-  return (
-    <section id="features" className="py-12 sm:py-16">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-2xl font-semibold">ここにポンッと置くだけ</h2>
-        <p className="mt-2 text-sm text-gray-600">伴奏と歌声、ハモリも追加できます。60秒までの短い素材に対応しています。</p>
-        <div className="mt-6 grid sm:grid-cols-2 gap-4">
-          <TeaserCard icon={<IconUpload className="text-[color:var(--brand)]"/>} title="ファイルをアップロード" desc="伴奏と歌声（WAV / MP3）をドラッグ&ドロップ" />
-          <TeaserCard icon={<IconDownload className="text-[color:var(--brand)]"/>} title="変換・ダウンロード" desc="AIで整えて2mixを出力。すぐ投稿OK" />
-        </div>
-      </div>
-    </section>
-  )
-}
-function TeaserCard({icon, title, desc}){
-  return (
-    <div className="card p-5">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-lg bg-indigo-50 grid place-items-center">{icon}</div>
-        <div>
-          <div className="font-medium">{title}</div>
-          <p className="text-sm text-gray-700">{desc}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
+ヘッダー：曲長/LUFS/TP、バッジ「AI解析済み」
 
-// =============================================
-// Upload (mock)
-// =============================================
-function Upload(){
-  return (
-    <section id="upload" className="py-12 sm:py-16 bg-white/60 border-y border-gray-100">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid md:grid-cols-2 gap-6">
-          <DropSlot kind="伴奏" />
-          <DropSlot kind="ボーカル" />
-        </div>
-        <div className="mt-6 card p-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <div className="font-medium">+ ハモリ（任意）</div>
-              <p className="text-sm text-gray-600">上3度・下3度・5度を自動生成してプレビュー。1つ選んで適用できます。</p>
-            </div>
-            <div className="flex gap-2">
-              <Tab active>ハモリ生成</Tab>
-              <Tab onClick={()=>{const el=document.getElementById('harmony-upload'); if(el){el.setAttribute('open','true'); el.scrollIntoView({behavior:'smooth', block:'start'})}}}>自分でアップロード</Tab>
-            </div>
-          </div>
-        </div>
-        {/* Harmony upload accordion */}
-        <details id="harmony-upload" className="mt-4 card">
-          <summary className="cursor-pointer select-none px-4 py-3 text-sm text-gray-700">ハモリを自分でアップロード（クリックして開く）</summary>
-          <div className="px-4 pb-4">
-            <div className="mt-3">
-              <DropSlot kind="ハモリ" />
-            </div>
-          </div>
-        </details>
-        <div className="mt-8 text-center">
-          <button className="btn-primary text-lg px-8 py-4" onClick={()=>alert('デモ：MIXを開始（プレビュー用）')}>MIX開始</button>
-          
-        </div>
-      </div>
-    </section>
-  )
-}
-function DropSlot({kind}){
-  return (
-    <div className="rounded-xl border-2 border-dashed p-5 text-center bg-white border-gray-200">
-      <IconUpload className="mx-auto text-[color:var(--brand)]" />
-      <div className="mt-2 font-medium">{kind}</div>
-      <div className="text-xs text-gray-600">ここにドラッグ / クリックして選択</div>
-      <div className="mt-1 text-[11px] text-gray-500">対応: WAV / MP3（〜20MB・60秒）</div>
-    </div>
-  )
-}
-function Tab({children, active, onClick}){
-  return (
-    <button onClick={onClick} className={cx('px-3 py-1.5 rounded-lg text-sm border transition', active? 'bg-indigo-50 border-indigo-200 text-indigo-900':'bg-white border-gray-200 hover:bg-gray-50')}>
-      {children}
-    </button>
-  )
-}
+プレビュー：波形、ABトグル、Loop、前後比較再生
 
-// =============================================
-// Benefits / How
-// =============================================
-function Benefits(){
-  const items = [
-    {icon:<IconSlider className="text-[color:var(--brand)]"/>, title:'ちょうどいい補正', lead:'歌心を残す自然なタッチ', pts:['ピッチ/タイミングを軽やかに補正','抑揚やビブラートは尊重','不自然な加工感は最小限']},
-    {icon:<IconBolt className="text-[color:var(--brand)]"/>, title:'すぐ使える', lead:'迷わず、待たせない', pts:['アップロード→自動処理','ログインなしでも試せる','WAV/MP3で保存も可能']},
-    {icon:<IconShield className="text-[color:var(--brand)]"/>, title:'安心して使える', lead:'非公開保存・短期削除', pts:['外部共有は行いません','アクセスはあなたのみ','削除もワンタップで簡単']},
-  ]
-  return (
-    <section className="py-12 sm:py-16">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-2xl font-semibold">ちょうどよく、すぐ、安心</h2>
-        <div className="mt-6 grid md:grid-cols-3 gap-4">
-          {items.map((it)=> (
-            <article key={it.title} className="card p-5">
-              <div className="text-2xl">{it.icon}</div>
-              <h3 className="mt-2 font-semibold">{it.title}</h3>
-              <p className="text-sm text-gray-700">{it.lead}</p>
-              <ul className="mt-3 text-sm text-gray-700 space-y-1.5">
-                {it.pts.map((p)=> (
-                  <li key={p} className="flex items-start gap-2"><IconCheck className="mt-[3px] text-[color:var(--brand)]"/>{p}</li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-function HowItWorks(){
-  const steps = [
-    ['①','伴奏と歌声を選ぶ','ドラッグ&ドロップ / タップで選択','対応: WAV/MP3 ・ 〜20MB ・ 60秒'],
-    ['②','自動でMIX&マスタリング','ピッチ・タイミング・MIXからマスタリングまで行います','ブラウザで進行が見えます'],
-    ['③','仕上がりを確認','満足したら保存。やり直しもOK','非公開保存・短期削除']
-  ]
-  return (
-    <section id="how" className="py-12 sm:py-16">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-2xl font-semibold">使い方は3ステップ</h2>
-        <ol className="mt-6 grid sm:grid-cols-3 gap-4">
-          {steps.map(([n,t,sub,meta])=> (
-            <li key={n} className="card p-5 flex flex-col">
-              <div className="flex items-center gap-2"><div className="text-lg font-mono">{n}</div><div className="font-medium">{t}</div></div>
-              <p className="mt-1 text-sm text-gray-700">{sub}</p>
-              <div className="mt-3 text-[12px] text-gray-600">{meta}</div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  )
-}
+ノブ（5軸）：Air / Body / Punch / Width / Vocal
 
-// =============================================
-// Pricing
-// =============================================
-function Pricing(){
-  return (
-    <section id="pricing" className="py-12 sm:py-16">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="card p-6 sm:p-8 text-center">
-          <h2 className="text-xl sm:text-2xl font-semibold">歌ってみたを、もっと気軽に始めよう</h2>
-          <p className="mt-3 text-sm text-gray-700">気に入らなければ料金はいただきません。7日間無料でお試しできます。</p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Plan name="ライト" price="¥1,280" note="/月" bullets={[
-              "毎月3クレジット",
-              "基本プリセット3種（クリーン/やわらか/ボーカル持ち上げ）",
-              "テンポのズレを軽くそろえる（±3%まで）",
-              "ピッチ補正：候補を表示（自動適用なし）",              "保存：7日間"
-            ]} />
-            <Plan name="スタンダード" price="¥2,480" note="/月" ribbon="人気" bullets={[
-              "毎月6クレジット",
-              "プリセット7種＋かんたん微調整（明るさ・広さ・前後感）",
-              "曲のテンポに自動で合わせる（可変テンポOK）",
-              "ピッチ補正：自動検出→ワンタップ修正",              "保存：30日間"
-            ]} highlight />
-            <Plan name="クリエイター" price="¥5,980" note="/月" bullets={[
-              "毎月10クレジット",
-              "プリセット12種＋細かな微調整",
-              "細かなテンポの揺れにも追従（テンポマップ）",
-              "ピッチ補正：高精度に自動修正",              "保存：90日間"
-            ]} />
-          </div>
-          <div className="mt-6">
-            <button className="btn-primary" onClick={()=>scrollToId('upload')}>無料で体験（7日間）</button>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-function Plan({name, price, note, bullets, ribbon, highlight}){
-  return (
-    <div className={cx('relative rounded-lg border p-5 text-left flex flex-col h-full', highlight? 'bg-indigo-50 border-indigo-200':'bg-white border-gray-200')}>
-      {ribbon && <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded-full bg-[var(--brand)] text-white">{ribbon}</span>}
-      <div className="font-semibold">{name}</div>
-      <div className="text-lg font-mono mt-1">{price}<span className="text-xs">{note}</span></div>
-      <ul className="mt-2 text-xs text-gray-700 space-y-1">
-        {bullets.map(b=> <li key={b} className="flex items-start gap-1.5"><IconCheckSmall className="mt-[2px]" />{b}</li>)}
-      </ul>
-      <div className="flex-1" />
-      <div className="mt-5"><button className={cx('w-full h-10 rounded-md text-sm font-semibold', highlight? 'bg-[var(--brand)] text-white':'bg-gray-900 text-white')}>プランを選択</button></div>
-    </div>
-  )
-}
+ステップ：0.1、範囲：-2.0〜+2.0（Widthは±10%）
 
-// =============================================
-// Icons
-// =============================================
-function IconDoc(props){return(<svg {...props} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>)}
-function IconSpark(props){return(<svg {...props} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>)}
-function IconTarget(props){return(<svg {...props} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>)}
-function IconUsers(props){return(<svg {...props} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>)}
-function IconUpload(props){return(<svg {...props} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 5 17 10"/><line x1="12" y1="5" x2="12" y2="16"/></svg>)}
-function IconDownload(props){return(<svg {...props} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>)}
-function IconSlider(props){return(<svg {...props} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><circle cx="12" cy="4" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="20" r="2"/></svg>)}
-function IconBolt(props){return(<svg {...props} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>)}
-function IconShield(props){return(<svg {...props} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l7 4v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V7l7-4z"/><path d="M9 12l2 2 4-4"/></svg>)}
-function IconCheck(props){return(<svg {...props} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>)}
-function IconCheckSmall(props){return(<svg {...props} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>)}
-function IconMic(props){return(<svg {...props} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M19 10a7 7 0 0 1-14 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>)}
+フェーダー：Fade In/Out（0–10s）、Output Gain（-3〜+3 dB）
 
-function FooterCol({title, items}){
-  return (
-    <div>
-      <h3 className="font-semibold text-gray-900">{title}</h3>
-      <ul className="mt-3 space-y-2">
-        {items.map(([label, href])=> <li key={label}><a href={href} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] rounded">{label}</a></li>)}
-      </ul>
-    </div>
-  )
-}
+アクション：プレビュー30s生成／書き出し（WAV16/24, MP3）
+
+ログ：LUFS/TP/過大GR警告（自動補正）
+
+復元：AI適用値に戻す／最後の書き出しに戻す
+
+2.2 Standard：/mix/standard/[jobId]（今回追記）
+
+目的：80–90%を安定確保。ジャンル別ターゲットとClarityで“濁り・抜け”を詰める。
+
+レイアウト（1ページ完結）
+
+Header：メタ（曲長/LUFS/TP）、バッジ「AI解析済み」、ジャンルターゲット セレクタ
+
+ジャンル：J-Pop / ROCK / EDM / Ballad（デフォ＝AI推定）
+
+変更時：AI_BASEを再計算せず、USER_EDITに対して補正差分を加算（即時試聴）
+
+Preview Pane：波形、A/Bトグル、Loop範囲、前後比較再生、-14 LUFS正規化
+
+Control Panel（6軸）
+
+Air：8–12kHzシェルフ（±0–2.5dB）＋Exciter微量
+
+Body：200–350Hz Bell（±0–2dB）＋80–120Hz MB比率 0–10%
+
+Punch：低域MBのAttack/Releaseプリセット切替＋GR上限±1.5dB
+
+Width：中高域Sideゲイン（±10%）、<120Hz Mono固定
+
+Vocal：2–4kHz Bell（±1.5dB）＋在時Ducking 0–2dB
+
+Clarity（新）：0.6–2kHz の濁り抑制（DynEQ）0–2dB、s成分優先
+
+入力：ドラッグ＋数値、単体リセット＝AI_BASEへ
+
+微調整（開閉）：
+
+De-esser帯域（S/SH 切替）・スレッショルド、MBタイム定数（粗めに3段）
+
+Reference（任意）：手動AB視聴のみ（ファイル/URLドロップ→正規化AB）※解析は行わない
+
+Fades/Gain：Fade In/Out（0–10s）、Output Gain（-3〜+3 dB）
+
+Actions：プレビュー30s／書き出し（WAV16/24, FLAC, MP3、目標LUFS選択）
+
+Logs：LUFS/TP測定、過大GRの自動クランプ履歴
+
+Snapshots：AI適用値に戻す／最後の書き出しに戻す／現在値を保存
+
+DSP差分（Lite対比）
+
+MB 4バンド、OS 8x、De-esserマルチ帯域
+
+ジャンルターゲットで Tilt傾き・MB比率・Side安全枠を一括係数補正
+
+Duckingはボーカル在時1–2dB（解析量に連動）
+
+制約/ガード
+
+合計GR > 6dB で赤警告→Punch/Clarity/De-esserを自動 5–10% 戻す
+
+TruePeak > -1.0dBTP 検知で Limiter2閾値を-0.2dB刻みで最大3回自動再適用
+
+完了条件
+
+書き出し後に LAST_EXPORT を更新、測定値と適用パラメータJSONを保存
+
+2.3 Creator：/mix/creator/[jobId]
+
+Standard全機能＋以下
+
+参照曲解析パネル：トーナル/PLR/ステレオの差分プロット、追従率スライダー
+
+Presence/Exciter ノブ（倍音比率 0–5%）
+
+詳細編集：MBクロス周波数、DynEQノード、Ducking帯域と量
+
+局所最適化：サビ/ブレイクの±0.5–1.0dB微オートメーションUI
+
+ABXブラインド：-14 LUFS正規化で3試行
+
+3) ルーティング / API / 状態
+
+ルート：/mix/lite|standard|creator/[jobId]
+
+API：
+
+POST /api/v1/mix/analyze → { meta, aiParams(AI_BASE) }
+
+POST /api/v1/mix/preview → { previewUrl, measured }
+
+POST /api/v1/mix/export → { fileUrl, measured, appliedParams, logs }
+
+POST /api/v1/mix/reference/analyze（Creatorのみ）
+
+状態：ai_params（AI_BASE）/ user_params（現在）/ last_export_params
+
+冪等：同jobId再訪は再解析せず（音源差分時のみ解析）
+
+4) ノブ定義（共通レンジ）
+
+Air：±0–2.5 dB（8–12kHz shelf, step 0.1）
+
+Body：±0–2.0 dB（200–350Hz bell, step 0.1）
+
+Punch：-1.5〜+1.5 dB（低域MB GR上限相当, step 0.1）＋Attack/Releaseプリセット
+
+Width：-10%〜+10%（中高域Side、<120Hz Mono固定）
+
+Vocal：±0–1.5 dB（2–4kHz bell）＋Ducking 0–2 dB
+
+Clarity（Std/Cr）：0–2 dB（0.6–2kHz DynEQ）
+
+Presence（Cr）：0–5%（倍音比率）
+
+5) 品質ゲート（共通）
+
+目標LUFS ±0.3、TP ≤ -1.0 dBTP → 未達は自動補正ループ（最大3回）
+
+過大GR段があれば自動クランプ＋トースト表示
+
+測定・適用パラメータはジョブに保存（再現性確保）
+
+6) 受け入れ基準（DoD）
+
+各プランページで AI適用後のノブ実値 が初期表示
+
+Standardページで：
+
+ジャンルターゲット変更が即時に差分反映
+
+Clarityノブが濁り帯域（0.6–2kHz）にダイナミックで効く
+
+手動参照AB（視聴のみ）が動作
+
+書き出し後に LAST_EXPORT 更新／ログ保存
+
+解析・プレビュー・書き出し・参照曲解析：すべて消費0で完了
+
+7) Claude Code 実装タスク（1ファイル全量）
+
+app/mix/standard/[id]/page.tsx：上記UIをStrict UI Parityで実装（DOM/クラス崩さない）
+
+app/api/v1/mix/*/route.ts：冪等解析／プレビュー生成／書き出し／参照曲（Creator）
+
+スナップショット管理：AI_BASE / USER_EDIT / LAST_EXPORT 切替API
+
+ガード処理：GR閾値・TP超過の自動補正とトースト

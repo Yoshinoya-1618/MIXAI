@@ -2,8 +2,11 @@
 
 import React from 'react'
 import Header from '../components/common/Header'
+import Footer from '../components/common/Footer'
 import StyleTokens from '../components/common/StyleTokens'
 import { InterruptedSessionBanner } from '../components/mix/InterruptedSessionBanner'
+import { AnnouncementBanner } from '../components/announcements/AnnouncementBanner'
+import { AnnouncementCard } from '../components/announcements/AnnouncementCard'
 
 // =============================================
 // Tokens / Utilities
@@ -19,6 +22,8 @@ export default function MIXAIHomePreview() {
   return (
     <main className="min-h-screen text-gray-900 bg-[var(--bg)]">
       <StyleTokens />
+      <AuroraBackground />
+      <AnnouncementBanner />
       <Header currentPage="home" />
       <Hero />
       
@@ -28,6 +33,14 @@ export default function MIXAIHomePreview() {
       </div>
       
       <Demo />
+      
+      {/* お知らせカード */}
+      <section className="py-8">
+        <div className="mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8">
+          <AnnouncementCard />
+        </div>
+      </section>
+      
       <Teasers />
       <Upload />
       <Benefits />
@@ -53,13 +66,13 @@ function Hero(){
   return (
     <section className="relative overflow-hidden">
       <HeroBG />
-      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-16 text-center">
+      <div className="relative z-20 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-16 text-center">
         <h1 className="text-white text-[34px] sm:text-[44px] font-semibold leading-tight tracking-tight">歌声が、主役になる。</h1>
         <p className="mt-4 max-w-2xl mx-auto text-[14.5px] sm:text-[15.5px] text-white/90">
           歌ってみた動画を、もっと気軽に。伴奏と歌声を入れるだけで、自然に整えます。
         </p>
         <div className="mt-6 flex items-center justify-center gap-3">
-          <button className="btn-hero" onClick={()=>scrollToId('upload')}>
+          <button className="btn-hero" onClick={() => window.location.href = '/upload'}>
             <span className="inline-flex items-center gap-1.5"><IconPlaySmall/>無料で始める</span>
           </button>
           <button className="btn-hero-ghost" onClick={()=>scrollToId('demo')}>デモを聴く</button>
@@ -124,7 +137,7 @@ function PrimaryCTA({ onClick, children }: { onClick?: () => void; children: Rea
 // =============================================
 function Demo(){
   return (
-    <section id="demo" className="py-12 sm:py-16">
+    <section id="demo" className="relative z-10 py-12 sm:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-xl sm:text-2xl font-semibold">まずは耳で。違いは短い秒数でも伝わる。</h2>
         <div className="mt-6 card p-5 sm:p-6">
@@ -132,7 +145,7 @@ function Demo(){
             <AudioCard label="Before" />
             <AudioCard label="After" tag="AI化" />
           </div>
-          <div className="mt-5"><button className="btn-primary" onClick={()=>scrollToId('upload')}>無料で試す</button></div>
+          <div className="mt-5"><button className="btn-primary" onClick={() => window.location.href = '/upload'}>無料で試す</button></div>
         </div>
       </div>
     </section>
@@ -168,13 +181,13 @@ function MiniBars(){
 // =============================================
 function Teasers(){
   return (
-    <section id="features" className="py-12 sm:py-16">
+    <section id="features" className="relative z-10 py-12 sm:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-2xl font-semibold">ここにポンッと置くだけ</h2>
-        <p className="mt-2 text-sm text-gray-600">伴奏と歌声、ハモリも追加できます。60秒までの短い素材に対応しています。</p>
+        <h2 className="text-xl sm:text-2xl font-semibold">AIで解析してMIX→マスタリングまで。すぐ投稿OK。</h2>
+        <p className="mt-2 text-sm text-gray-600">instと歌声、ハモリも追加できます。60秒までの短い素材に対応しています。</p>
         <div className="mt-6 grid sm:grid-cols-2 gap-4">
-          <TeaserCard icon={<IconUpload className="text-[color:var(--brand)]"/>} title="ファイルをアップロード" desc="伴奏と歌声（WAV / MP3）をドラッグ&ドロップ" />
-          <TeaserCard icon={<IconDownload className="text-[color:var(--brand)]"/>} title="変換・ダウンロード" desc="AIで整えて2mixを出力。すぐ投稿OK" />
+          <TeaserCard icon={<IconUpload className="text-[color:var(--brand)]"/>} title="ファイルをアップロード" desc="instと歌声（WAV / MP3）をドラッグ&ドロップ" />
+          <TeaserCard icon={<IconDownload className="text-[color:var(--brand)]"/>} title="変換・ダウンロード" desc="AIで解析してMIX→マスタリングまで。すぐ投稿OK。" />
         </div>
       </div>
     </section>
@@ -199,10 +212,10 @@ function TeaserCard({icon, title, desc}: {icon: React.ReactNode; title: string; 
 // =============================================
 function Upload(){
   return (
-    <section id="upload" className="py-12 sm:py-16 bg-white/60 border-y border-gray-100">
+    <section id="upload" className="relative z-10 py-12 sm:py-16 bg-white/60 border-y border-gray-100">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 gap-6">
-          <DropSlot kind="伴奏" />
+          <DropSlot kind="inst" />
           <DropSlot kind="ボーカル" />
         </div>
         <div className="mt-6 card p-4">
@@ -227,7 +240,7 @@ function Upload(){
           </div>
         </details>
         <div className="mt-8 text-center">
-          <button className="btn-primary text-lg px-8 py-4" onClick={()=>alert('デモ：MIXを開始（プレビュー用）')}>MIX開始</button>
+          <button className="btn-primary text-lg px-8 py-4" onClick={() => window.location.href = '/upload'}>MIX開始</button>
           
         </div>
       </div>
@@ -261,14 +274,14 @@ function Tab({children, active, onClick}: {children: React.ReactNode; active?: b
 // =============================================
 function Benefits(){
   const items = [
-    {icon:<IconSlider className="text-[color:var(--brand)]"/>, title:'ちょうどいい補正', lead:'歌心を残す自然なタッチ', pts:['ピッチ/タイミングを軽やかに補正','抑揚やビブラートは尊重','不自然な加工感は最小限']},
-    {icon:<IconBolt className="text-[color:var(--brand)]"/>, title:'すぐ使える', lead:'迷わず、待たせない', pts:['アップロード→自動処理','ログインなしでも試せる','WAV/MP3で保存も可能']},
-    {icon:<IconShield className="text-[color:var(--brand)]"/>, title:'安心して使える', lead:'非公開保存・短期削除', pts:['外部共有は行いません','アクセスはあなたのみ','削除もワンタップで簡単']},
+    {icon:<IconSlider className="text-[color:var(--brand)]"/>, title:'プロ級の品質', lead:'AIによる高精度な音声処理', pts:['ピッチ補正で正確な音程に','タイミング調整でリズムをジャスト','マスタリングで配信クオリティ']},
+    {icon:<IconBolt className="text-[color:var(--brand)]"/>, title:'簡単・高速', lead:'誰でもすぐに使える', pts:['アップロードするだけで自動処理','難しい設定は一切不要','数分で完成']},
+    {icon:<IconShield className="text-[color:var(--brand)]"/>, title:'安全・安心', lead:'プライバシーを守る', pts:['アップロードファイルは非公開','プラン別の保存期間後に自動削除','セキュアな通信でデータを保護']},
   ]
   return (
-    <section className="py-12 sm:py-16">
+    <section className="relative z-10 py-12 sm:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-2xl font-semibold">ちょうどよく、すぐ、安心</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold">機能一覧</h2>
         <div className="mt-6 grid md:grid-cols-3 gap-4">
           {items.map((it)=> (
             <article key={it.title} className="card p-5">
@@ -290,14 +303,14 @@ function Benefits(){
 
 function HowItWorks(){
   const steps = [
-    ['①','伴奏と歌声を選ぶ','ドラッグ&ドロップ / タップで選択','対応: WAV/MP3 ・ 〜20MB ・ 60秒'],
-    ['②','自動でMIX&マスタリング','ピッチ・タイミング・MIXからマスタリングまで行います','ブラウザで進行が見えます'],
-    ['③','仕上がりを確認','満足したら保存。やり直しもOK','非公開保存・短期削除']
+    ['①','伴奏と歌声をアップロード','ドラッグ&ドロップまたはファイル選択','対応: WAV/MP3 ・ 〜20MB ・ 〜60秒'],
+    ['②','AIがMIX・マスタリング','ピッチ補正・タイミング調整・音量バランスを自動処理','処理状況をリアルタイムで表示'],
+    ['③','完成ファイルをダウンロード','満足いただけたらダウンロード','保存期間内は何度でもダウンロード可能']
   ]
   return (
-    <section id="how" className="py-12 sm:py-16">
+    <section id="how" className="relative z-10 py-12 sm:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-2xl font-semibold">使い方は3ステップ</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold">MIXの始め方ガイド</h2>
         <ol className="mt-6 grid sm:grid-cols-3 gap-4">
           {steps.map(([n,t,sub,meta])=> (
             <li key={n} className="card p-5 flex flex-col">
@@ -318,90 +331,169 @@ function HowItWorks(){
 // =============================================
 function Pricing(){
   return (
-    <section id="pricing" className="py-12 sm:py-16">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="card p-6 sm:p-8 text-center">
-          <h2 className="text-xl sm:text-2xl font-semibold">歌ってみたを、もっと気軽に始めよう</h2>
-          <p className="mt-3 text-sm text-gray-700">気に入らなければ料金はいただきません。7日間無料でお試しできます。</p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Plan name="ライト" price="¥1,280" note="/月" bullets={[
-              "毎月3クレジット",
-              "基本プリセット3種（クリーン/やわらか/ボーカル持ち上げ）",
-              "テンポのズレを軽くそろえる（±3%まで）",
-              "ピッチ補正：候補を表示（自動適用なし）",
-              "保存：7日間"
-            ]} />
-            <Plan name="スタンダード" price="¥2,480" note="/月" ribbon="人気" bullets={[
-              "毎月6クレジット",
-              "プリセット7種＋かんたん微調整（明るさ・広さ・前後感）",
-              "曲のテンポに自動で合わせる（可変テンポOK）",
-              "ピッチ補正：自動検出→ワンタップ修正",
-              "保存：30日間"
-            ]} highlight />
-            <Plan name="クリエイター" price="¥5,980" note="/月" bullets={[
-              "毎月10クレジット",
-              "プリセット12種＋細かな微調整",
-              "細かなテンポの揺れにも追従（テンポマップ）",
-              "ピッチ補正：高精度に自動修正",
-              "保存：90日間"
-            ]} />
-          </div>
-          <div className="mt-6">
-            <button className="btn-primary" onClick={()=>scrollToId('upload')}>無料で体験（7日間）</button>
+    <section id="pricing" className="relative z-10 py-12 sm:py-16">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold">料金プラン</h2>
+          <p className="mt-3 text-base text-gray-700">会員登録で7日間の無料トライアル（クレカ不要）</p>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-3">
+          <Plan 
+            name="Lite" 
+            price="1,780" 
+            credits="3" 
+            features={[
+              { label: "MIX調整機能", detail: "5軸（音量・ピッチ・タイミング・空間・音質）" },
+              { label: "テーマ", detail: "3種類（Natural・Clear・Warm）" },
+              { label: "ハモリ生成", detail: "全編対応 +0.5クレジット" },
+              { label: "保存期間", detail: "7日間" },
+              { label: "出力形式", detail: "MP3/WAV" }
+            ]} 
+          />
+          <Plan 
+            name="Standard" 
+            price="3,980" 
+            credits="6" 
+            ribbon="人気" 
+            features={[
+              { label: "MIX調整機能", detail: "6軸 +明瞭度（Clarity）" },
+              { label: "テーマ", detail: "5種類 +AI推奨テーマ" },
+              { label: "ハモリ生成", detail: "全編対応 +0.5クレジット" },
+              { label: "保存期間", detail: "15日間" },
+              { label: "出力形式", detail: "MP3/WAV/FLAC" }
+            ]} 
+            highlight 
+          />
+          <Plan 
+            name="Creator" 
+            price="7,380" 
+            credits="10" 
+            features={[
+              { label: "MIX調整機能", detail: "7軸 +存在感（Presence）" },
+              { label: "テーマ", detail: "カスタムテーマ +参照曲解析" },
+              { label: "ハモリ生成", detail: "全編対応 +0.5クレジット" },
+              { label: "保存期間", detail: "30日間" },
+              { label: "出力形式", detail: "MP3/WAV/FLAC" }
+            ]} 
+          />
+        </div>
+        <div className="text-center mt-8">
+          <button className="btn-primary px-8 py-3" onClick={() => window.location.href = '/pricing'}>
+            <span className="font-semibold">全プランを比較する</span>
+          </button>
+          <p className="mt-3 text-xs text-gray-600">詳細な機能比較表を確認できます</p>
+        </div>
+        
+        {/* クレジット購入の案内 */}
+        <div className="mt-12 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">サブスク不要！必要な分だけクレジット購入</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              コンビニ・銀行振込でもOK。必要な時に必要な分だけ購入できます
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+              <div className="bg-white p-3 rounded-lg">
+                <div className="font-bold text-indigo-600">1クレジット</div>
+                <div className="text-xs text-gray-600">¥700</div>
+                <div className="text-xs">¥700/曲</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <div className="font-bold text-indigo-600">2クレジット</div>
+                <div className="text-xs text-gray-600">¥1,380</div>
+                <div className="text-xs">¥690/曲</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg border-2 border-indigo-300">
+                <div className="font-bold text-indigo-600">5クレジット</div>
+                <div className="text-xs text-gray-600">¥3,300</div>
+                <div className="text-xs text-green-600 font-semibold">¥660/曲</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <div className="font-bold text-indigo-600">10クレジット</div>
+                <div className="text-xs text-gray-600">¥6,500</div>
+                <div className="text-xs text-green-600 font-semibold">¥650/曲</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <div className="font-bold text-indigo-600">20クレジット</div>
+                <div className="text-xs text-gray-600">¥12,000</div>
+                <div className="text-xs text-green-600 font-semibold">¥600/曲</div>
+              </div>
+            </div>
+            <button className="btn-secondary px-6 py-2" onClick={() => window.location.href = '/credits'}>
+              クレジットを購入
+            </button>
           </div>
         </div>
       </div>
     </section>
   )
 }
-function Plan({name, price, note, bullets, ribbon, highlight}: {name: string; price: string; note: string; bullets: string[]; ribbon?: string; highlight?: boolean}){
+function Plan({name, price, credits, features, ribbon, highlight}: {
+  name: string; 
+  price: string; 
+  credits: string;
+  features: {label: string; detail: string}[];
+  ribbon?: string; 
+  highlight?: boolean
+}){
   return (
-    <div className={cx('relative rounded-lg border p-5 text-left flex flex-col h-full', highlight? 'bg-indigo-50 border-indigo-200':'bg-white border-gray-200')}>
-      {ribbon && <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded-full bg-[var(--brand)] text-white">{ribbon}</span>}
-      <div className="font-semibold">{name}</div>
-      <div className="text-lg font-mono mt-1">{price}<span className="text-xs">{note}</span></div>
-      <ul className="mt-2 text-xs text-gray-700 space-y-1">
-        {bullets.map(b=> <li key={b} className="flex items-start gap-1.5"><IconCheckSmall className="mt-[2px]" />{b}</li>)}
-      </ul>
-      <div className="flex-1" />
-      <div className="mt-5"><button className={cx('w-full h-10 rounded-md text-sm font-semibold', highlight? 'bg-[var(--brand)] text-white':'bg-gray-900 text-white')}>プランを選択</button></div>
-    </div>
-  )
-}
-
-
-function Footer(){
-  return (
-    <footer className="border-t bg-white">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 text-xs text-gray-700">
-        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
-          <FooterCol title="Help" items={[["ヘルプセンター","#"],["使い方ガイド","#"],["FAQ","#"],["制限/対応フォーマット","#"]]} />
-          <FooterCol title="ポリシー" items={[["利用規約","#"],["プライバシー","#"],["クッキー","#"],["コンテンツ","#"],["権利侵害の申告","#"]]} />
-          <FooterCol title="販売情報" items={[["特商法表記","#"],["返金・キャンセル","#"],["支払い・領収書","#"]]} />
-          <FooterCol title="安全と連絡" items={[["セキュリティ","#"],["データ削除リクエスト","#"],["通報","#"],["お問い合わせ","#"],["運営者情報","#"]]} />
+    <div className={cx(
+      'relative rounded-xl border-2 p-6 text-left flex flex-col h-full transition-all',
+      highlight ? 'bg-gradient-to-b from-indigo-50 to-white border-indigo-300 shadow-lg scale-105' : 'bg-white border-gray-200 hover:border-gray-300'
+    )}>
+      {ribbon && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold">
+          {ribbon}
+        </span>
+      )}
+      
+      <div className="text-center pb-4 border-b border-gray-100">
+        <div className="font-bold text-lg text-gray-900">{name}</div>
+        <div className="mt-3">
+          <span className="text-3xl font-bold">¥{price}</span>
+          <span className="text-sm text-gray-600">/月</span>
         </div>
-        <div className="mt-8 flex items-center justify-between text-[11px] text-gray-500">
-          <div className="flex items-center gap-2"><Logo /><span>© {new Date().getFullYear()} MIXAI</span></div>
-          <div className="flex gap-3">
-            <A href="#">ステータス</A>
-            <A href="#">更新情報</A>
-          </div>
+        <div className="mt-2 text-sm text-gray-700">
+          月間 <span className="font-semibold text-indigo-600">{credits}クレジット</span>
+        </div>
+        <div className="mt-1 text-xs text-gray-600">
+          {name === 'Lite' && '約¥593/曲でMIX可能'}
+          {name === 'Standard' && '約¥663/曲でMIX可能'}
+          {name === 'Creator' && '約¥738/曲でMIX可能'}
         </div>
       </div>
-    </footer>
-  )
-}
-
-function FooterCol({title, items}: {title: string; items: Array<[string, string]>}){
-  return (
-    <div>
-      <h3 className="font-semibold text-gray-900">{title}</h3>
-      <ul className="mt-3 space-y-2">
-        {items.map(([label, href])=> <li key={label}><a href={href} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] rounded">{label}</a></li>)}
+      
+      <ul className="mt-4 space-y-3 flex-1">
+        {features.map(f => (
+          <li key={f.label} className="flex items-start gap-2">
+            <div className="mt-0.5">
+              <IconCheckSmall className="text-green-500" />
+            </div>
+            <div className="flex-1 text-sm">
+              <div className="font-medium text-gray-900">{f.label}</div>
+              <div className="text-xs text-gray-600">{f.detail}</div>
+            </div>
+          </li>
+        ))}
       </ul>
+      
+      <div className="mt-6">
+        <button 
+          onClick={() => window.location.href = `/checkout?plan=${name.toLowerCase()}`} 
+          className={cx(
+            'w-full py-2.5 rounded-lg text-sm font-semibold transition-all',
+            highlight 
+              ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:from-indigo-600 hover:to-blue-600' 
+              : 'bg-gray-900 text-white hover:bg-gray-800'
+          )}
+        >
+          {highlight ? 'おすすめプラン' : 'このプランを選ぶ'}
+        </button>
+      </div>
     </div>
   )
 }
+
+
 
 // =============================================
 // Icons
@@ -420,5 +512,24 @@ function IconMic(props: any){return(<svg {...props} width="14" height="14" viewB
 function IconPlaySmall(props: any){
   return (
     <svg {...props} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-[color:var(--brand)]"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+  )
+}
+
+function AuroraBackground() {
+  const COLORS = {
+    indigo: '#6366F1',
+    blue: '#22D3EE',  
+    magenta: '#F472B6',
+  }
+  
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden">
+      <div className="absolute -top-40 -right-32 w-96 h-96 rounded-full opacity-35 blur-3xl" 
+           style={{ background: `linear-gradient(135deg, ${COLORS.indigo} 0%, ${COLORS.blue} 100%)` }} />
+      <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-30 blur-3xl" 
+           style={{ background: `linear-gradient(135deg, ${COLORS.blue} 0%, ${COLORS.magenta} 100%)` }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl"
+           style={{ background: `linear-gradient(135deg, ${COLORS.magenta} 0%, ${COLORS.indigo} 100%)` }} />
+    </div>
   )
 }

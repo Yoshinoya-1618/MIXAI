@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { Noto_Sans_JP, Inter } from 'next/font/google'
+import { FeedbackWidget } from '../components/feedback/FeedbackWidget'
 
 // フォント最適化（app/page.tsxのスタイルに合わせてInterも追加）
 const notoSansJP = Noto_Sans_JP({ 
@@ -158,6 +159,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
         {children}
+        <FeedbackWidget />
       </body>
     </html>
   )

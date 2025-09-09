@@ -13,6 +13,7 @@ const supabase = createClient(
 
 const UpdateSettingsSchema = z.object({
   preset_key: z.string().optional(),
+  theme_key: z.string().optional(), // テーマ選択（MIX前）
   micro_adjust: z.object({
     forwardness: z.number().min(-1).max(1).optional(),
     space: z.number().min(0).max(1).optional(), 
@@ -60,6 +61,7 @@ export async function PATCH(
     // 設定更新
     const updateData: any = {}
     if (body.preset_key) updateData.preset_key = body.preset_key
+    if (body.theme_key) updateData.theme_key = body.theme_key // テーマ保存
     if (body.micro_adjust) updateData.micro_adjust = body.micro_adjust
     if (body.inst_policy) updateData.inst_policy = body.inst_policy
 
@@ -79,6 +81,7 @@ export async function PATCH(
         id: updatedJob.id,
         status: updatedJob.status,
         preset_key: updatedJob.preset_key,
+        theme_key: updatedJob.theme_key,
         micro_adjust: updatedJob.micro_adjust,
         inst_policy: updatedJob.inst_policy
       }

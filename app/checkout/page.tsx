@@ -34,6 +34,7 @@ function CheckoutContent() {
   const sp = useSearchParams()
   const router = useRouter()
   const jobId = sp.get('job')
+  const planCode = sp.get('plan') // プランコードを取得
   const [jobDetails, setJobDetails] = useState<any>(null)
   const [creditBalance, setCreditBalance] = useState<number>(0)
   const [paymentMethod, setPaymentMethod] = useState<'credits' | 'onetime'>('credits')
@@ -45,8 +46,41 @@ function CheckoutContent() {
   useEffect(() => {
     if (jobId) {
       loadJobDetails()
+    } else if (planCode) {
+      // プラン購入の場合
+      loadPlanDetails()
     }
-  }, [jobId])
+  }, [jobId, planCode])
+
+  const loadPlanDetails = async () => {
+    try {
+      // プラン購入時はStripe Checkoutセッションを作成して直接リダイレクト
+      setMsg('チェックアウトページへ移動しています...')
+      
+      const response = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan_code: planCode,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session')
+      }
+      
+      const { checkout_url } = await response.json()
+      
+      // Stripe Checkoutへリダイレクト
+      window.location.href = checkout_url
+    } catch (error) {
+      console.error('Error creating checkout session:', error)
+      setMsg('エラーが発生しました。もう一度お試しください。')
+      setLoading(false)
+    }
+  }
 
   const loadJobDetails = async () => {
     try {
@@ -120,7 +154,19 @@ function CheckoutContent() {
   if (loading) {
     return (
       <div className="py-16 text-center">
-        <div className="animate-pulse">明細を読み込み中...</div>
+        <div className="animate-pulse">
+          {planCode ? 'チェックアウトページへ移動中...' : '明細を読み込み中...'}
+        </div>
+        {msg && <div className="mt-4 text-gray-600">{msg}</div>}
+      </div>
+    )
+  }
+
+  // プラン購入の場合はここには到達しない（リダイレクトされる）
+  if (planCode && !jobDetails) {
+    return (
+      <div className="py-16 text-center">
+        <div className="text-gray-600">チェックアウトページへ移動しています...</div>
       </div>
     )
   }
