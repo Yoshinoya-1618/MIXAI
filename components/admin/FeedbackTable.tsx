@@ -19,7 +19,7 @@ import FeedbackDetailModal from './FeedbackDetailModal'
 
 interface Feedback {
   id: string
-  type: 'bug' | 'feature' | 'improvement' | 'other'
+  type: 'bug' | 'feature' | 'improvement' | 'contact' | 'other'
   category?: string
   rating?: number
   message: string
@@ -30,6 +30,7 @@ interface Feedback {
   page_url?: string
   created_at: string
   feedback_responses?: any[]
+  metadata?: any
 }
 
 interface FeedbackTableProps {
@@ -50,6 +51,8 @@ export default function FeedbackTable({ initialFeedbacks }: FeedbackTableProps) 
         return <Lightbulb className="h-4 w-4 text-blue-500" />
       case 'improvement':
         return <TrendingUp className="h-4 w-4 text-green-500" />
+      case 'contact':
+        return <MessageSquare className="h-4 w-4 text-purple-500" />
       default:
         return <HelpCircle className="h-4 w-4 text-gray-500" />
     }
@@ -60,6 +63,7 @@ export default function FeedbackTable({ initialFeedbacks }: FeedbackTableProps) 
       'bug': 'バグ報告',
       'feature': '機能要望',
       'improvement': '改善提案',
+      'contact': 'お問い合わせ',
       'other': 'その他'
     }
     return labels[type] || type

@@ -47,24 +47,22 @@ export default function TokushohoPage() {
               <tbody className="divide-y">
                 <tr>
                   <td className="py-3 pr-4 font-medium text-gray-700 w-1/3">販売事業者名</td>
-                  <td className="py-3">MIXAI株式会社</td>
+                  <td className="py-3">よしの屋　※個人事業主</td>
                 </tr>
                 <tr>
                   <td className="py-3 pr-4 font-medium text-gray-700">代表者</td>
-                  <td className="py-3">代表取締役 山田太郎</td>
+                  <td className="py-3">吉野 有翔</td>
                 </tr>
                 <tr>
                   <td className="py-3 pr-4 font-medium text-gray-700">所在地</td>
                   <td className="py-3">
-                    〒150-0001<br />
-                    東京都渋谷区神宮前1-1-1 MIXAIビル5F
+                    ※請求があれば遅滞なく開示します
                   </td>
                 </tr>
                 <tr>
                   <td className="py-3 pr-4 font-medium text-gray-700">電話番号</td>
                   <td className="py-3">
-                    03-xxxx-xxxx<br />
-                    <span className="text-sm text-gray-600">（受付時間：平日10:00-18:00）</span>
+                    ※請求があれば遅滞なく開示します
                   </td>
                 </tr>
                 <tr>
@@ -86,9 +84,9 @@ export default function TokushohoPage() {
               <div>
                 <h3 className="font-medium mb-2">サブスクリプションプラン</h3>
                 <ul className="space-y-2 ml-4">
-                  <li>• Liteプラン: 月額1,280円（税込）</li>
-                  <li>• Standardプラン: 月額2,980円（税込）</li>
-                  <li>• Creatorプラン: 月額5,980円（税込）</li>
+                  <li>• Liteプラン: 月額1,780円（税込）</li>
+                  <li>• Standardプラン: 月額3,980円（税込）</li>
+                  <li>• Creatorプラン: 月額7,380円（税込）</li>
                 </ul>
               </div>
               <div>
@@ -245,7 +243,6 @@ export default function TokushohoPage() {
             </p>
             <div className="mt-3 space-y-1">
               <p>メール: support@mixai.jp</p>
-              <p>電話: 03-xxxx-xxxx（平日10:00-18:00）</p>
               <p>
                 <a href="/contact" className="text-blue-600 hover:underline">
                   お問い合わせフォーム

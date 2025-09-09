@@ -32,6 +32,7 @@ export default async function FeedbackManagement() {
       bug: feedbacks?.filter(f => f.type === 'bug').length || 0,
       feature: feedbacks?.filter(f => f.type === 'feature').length || 0,
       improvement: feedbacks?.filter(f => f.type === 'improvement').length || 0,
+      contact: feedbacks?.filter(f => f.type === 'contact').length || 0,
       other: feedbacks?.filter(f => f.type === 'other').length || 0
     }
   }
