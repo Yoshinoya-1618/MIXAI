@@ -11,7 +11,7 @@ export default function RegisterPage() {
   return (
     <main className="min-h-screen text-gray-900 bg-[var(--bg)]">
       <StyleTokens />
-      <Header currentPage="register" />
+      <Header currentPage="register" showMainNavigation={false} />
       <RegisterForm />
       <Footer />
     </main>
@@ -168,6 +168,8 @@ function RegisterForm() {
             </button>
           </form>
 
+          {/* Googleログイン */}
+          {true && (
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -189,6 +191,7 @@ function RegisterForm() {
               </button>
             </div>
           </div>
+          )}
 
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-600">

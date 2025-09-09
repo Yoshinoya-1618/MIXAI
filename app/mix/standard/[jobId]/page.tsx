@@ -1,50 +1,54 @@
-// app/mix/standard/[jobId]/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import PreviewEditOnly from '../../../../preview_edit_only_v_7'
+import MixTonePanelOnly from '../../../../Mix Tone Panel Only'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Play, Pause, Download, RotateCcw, Sparkles, Settings, Music2, ChevronDown, Volume2 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Play, Pause, Download, RotateCcw, Sparkles, Music, Volume2, VolumeX, Wand2, HelpCircle, Settings } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-interface MixParams {
-  air: number
-  body: number
-  punch: number
-  width: number
-  vocal: number
-  clarity: number
-  fade_in: number
-  fade_out: number
-  output_gain: number
-  genre_target: string
-  offset_ms: number
-  processing_settings: {
-    plan: string
-    dtw_enabled: boolean
-    pitch_correction: any[]
-    oversampling: number
-  }
+// Standard Plan Mix Params (6軸: Air/Body/Punch/Width/Vocal/Clarity)
+interface StandardMixParams {
+  airDb: number          // Air (8-12kHz shelf)
+  lowDb: number          // Body (200-350Hz bell)
+  highDb: number         // High frequencies
+  punchCompDb: number    // Punch (低域MB GR上限)
+  spaceReverbSec: number // Width (中高域Side)
+  presenceDb: number     // Vocal (2-4kHz bell)
+  clarityDb: number      // Clarity (0.6-2k DynEQ) - Standard版追加
+  deEssDb: number        // マルチ帯域De-esser
+  satDb: number          // サチュレーション
+  stereoRatio: number    // ステレオ比率
+  gateThreshDb: number   // ノイズゲート
+  harmVol: number        // ハモリ音量
+  // ジャンル別調整
+  genrePreset: string    // J-Pop/ROCK/EDM/Ballad
 }
 
 interface JobData {
   id: string
   title: string
   status: string
-  ai_params: MixParams
-  user_params: MixParams
-  last_export_params?: MixParams
+  ai_params: StandardMixParams
+  user_params: StandardMixParams
+  last_export_params?: StandardMixParams
   metrics: any
   harmony_paths?: any
   harmony_generated: boolean
   harmony_choice?: string
   harmony_level_db: number
+  // オーディオ情報
+  duration_s?: number
+  measured_lufs?: number
+  true_peak?: number
+  dynamic_range?: number
 }
 
 interface HarmonyOption {
@@ -74,7 +78,21 @@ export default function StandardMixPage() {
   const jobId = params.jobId as string
 
   const [job, setJob] = useState<JobData | null>(null)
-  const [currentParams, setCurrentParams] = useState<MixParams | null>(null)
+  const [mixParams, setMixParams] = useState<StandardMixParams>({
+    airDb: 0.0,
+    lowDb: 0.0,
+    highDb: 0.0,
+    punchCompDb: 1.0,
+    spaceReverbSec: 1.0,
+    presenceDb: 0.0,
+    clarityDb: 0.0,      // Standard版追加項目
+    deEssDb: 2.0,
+    satDb: 1.0,
+    stereoRatio: 1.0,
+    gateThreshDb: -45,
+    harmVol: 0.6,
+    genrePreset: 'auto'  // Standard版追加項目
+  })
   const [activeMode, setActiveMode] = useState<'AI_BASE' | 'USER_EDIT'>('USER_EDIT')
   const [masterMode, setMasterMode] = useState<'pre' | 'post'>('post')
   const [isPlaying, setIsPlaying] = useState(false)
@@ -85,8 +103,11 @@ export default function StandardMixPage() {
   const [loading, setLoading] = useState(true)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [harmonyTrialMode, setHarmonyTrialMode] = useState<string>('none')
+  const [harmonyChoice, setHarmonyChoice] = useState<string>('none')
   const [harmonyLevel, setHarmonyLevel] = useState(job?.harmony_level_db || -6)
   const [isApplyingHarmony, setIsApplyingHarmony] = useState(false)
+  const [abComparison, setAbComparison] = useState(false)
+  const [preMaster, setPreMaster] = useState(false)
 
   // ジョブデータ取得
   useEffect(() => {
@@ -101,9 +122,18 @@ export default function StandardMixPage() {
         }
 
         const data = await response.json()
-        setJob(data.job)
-        setCurrentParams(data.job.user_params || data.job.ai_params)
-        setHarmonyLevel(data.job.harmony_level_db || -6)
+        setJob(data)
+        // AI適用済みパラメータがあれば初期値として設定
+        if (data.ai_params) {
+          setMixParams(prev => ({ ...prev, ...data.ai_params }))
+        }
+        // ハモリ設定の初期化
+        if (data.harmony_choice) {
+          setHarmonyChoice(data.harmony_choice)
+        }
+        if (data.harmony_level_db !== undefined) {
+          setHarmonyLevel(data.harmony_level_db)
+        }
       } catch (error) {
         console.error('Job fetch error:', error)
         toast({
@@ -120,31 +150,50 @@ export default function StandardMixPage() {
     fetchJob()
   }, [jobId, router, toast])
 
-  // パラメータ変更ハンドラー
-  const handleParamChange = (param: keyof MixParams, value: number | string) => {
-    if (!currentParams) return
-
-    setCurrentParams(prev => ({
-      ...prev!,
-      [param]: value
-    }))
-    setActiveMode('USER_EDIT')
+  // Mix Tone Panelからのコミットハンドラ
+  const handleMixCommit = (newParams: StandardMixParams) => {
+    setMixParams(newParams)
   }
 
-  // AI_BASEに戻す
-  const resetToAIBase = () => {
-    if (!job) return
-    setCurrentParams(job.ai_params)
-    setActiveMode('AI_BASE')
-    toast({
-      title: "リセット完了",
-      description: "AI適用値に戻しました"
-    })
+  // Mix Tone Panelのリセットハンドラ
+  const handleMixReset = () => {
+    if (job?.ai_params) {
+      setMixParams({ ...mixParams, ...job.ai_params })
+    }
+  }
+
+  // ジャンル変更時の差分適用
+  const handleGenreChange = (newGenre: string) => {
+    const genreCoefficients = {
+      jpop: { clarityDb: 1.0, airDb: 0.5, highDb: 1.0, presenceDb: 1.0, punchCompDb: 1.0, spaceReverbSec: 1.0, stereoRatio: 1.0, satDb: 1.0 },
+      rock: { clarityDb: 1.0, punchCompDb: 1.5, highDb: 1.0, presenceDb: 1.2, airDb: 0.8, spaceReverbSec: 1.0, stereoRatio: 1.0, satDb: 1.0 },
+      edm: { clarityDb: 1.0, airDb: 1.5, highDb: 1.0, spaceReverbSec: 1.3, stereoRatio: 1.2, punchCompDb: 1.0, presenceDb: 1.0, satDb: 1.0 },
+      ballad: { clarityDb: 1.0, spaceReverbSec: 1.4, highDb: 1.0, presenceDb: 0.8, satDb: 0.7, airDb: 1.0, punchCompDb: 1.0, stereoRatio: 1.0 }
+    }
+
+    if (newGenre !== 'auto' && genreCoefficients[newGenre as keyof typeof genreCoefficients]) {
+      const coeffs = genreCoefficients[newGenre as keyof typeof genreCoefficients]
+      setMixParams(prev => ({
+        ...prev,
+        genrePreset: newGenre,
+        // 差分適用（AI適用値に係数をかける）
+        clarityDb: prev.clarityDb * coeffs.clarityDb,
+        airDb: prev.airDb * coeffs.airDb,
+        highDb: prev.highDb * coeffs.highDb,
+        presenceDb: prev.presenceDb * coeffs.presenceDb,
+        punchCompDb: prev.punchCompDb * coeffs.punchCompDb,
+        spaceReverbSec: prev.spaceReverbSec * coeffs.spaceReverbSec,
+        stereoRatio: prev.stereoRatio * coeffs.stereoRatio,
+        satDb: prev.satDb * coeffs.satDb
+      }))
+    } else {
+      setMixParams(prev => ({ ...prev, genrePreset: newGenre }))
+    }
   }
 
   // ハモリ試聴
   const tryHarmony = async (harmonyId: string) => {
-    if (!currentParams || isGeneratingPreview) return
+    if (!mixParams || isGeneratingPreview) return
 
     setHarmonyTrialMode(harmonyId)
     setIsGeneratingPreview(true)
@@ -158,7 +207,7 @@ export default function StandardMixPage() {
         },
         body: JSON.stringify({
           jobId,
-          params: currentParams,
+          params: mixParams,
           mode: masterMode + 'Master',
           harmony_trial: harmonyId
         })
@@ -233,8 +282,8 @@ export default function StandardMixPage() {
   }
 
   // プレビュー生成
-  const generatePreview = async () => {
-    if (!currentParams || isGeneratingPreview) return
+  const handlePreview = async () => {
+    if (isGeneratingPreview) return
 
     setIsGeneratingPreview(true)
     try {
@@ -246,9 +295,8 @@ export default function StandardMixPage() {
         },
         body: JSON.stringify({
           jobId,
-          params: currentParams,
-          ab: activeMode,
-          mode: masterMode + 'Master'
+          params: mixParams,
+          harmony_trial: harmonyChoice !== 'none' ? harmonyChoice : null,
         })
       })
 
@@ -257,13 +305,12 @@ export default function StandardMixPage() {
       }
 
       const data = await response.json()
-      setPreviewUrl(data.previewUrl)
-      setActiveMode('USER_EDIT')
-      
-      toast({
-        title: "プレビュー生成完了",
-        description: "30秒プレビューが生成されました（クレジット消費なし）"
-      })
+      // プレビューURLを PreviewEditOnly に渡す
+      if ((window as any).mixaiDecodeAndSetAudio) {
+        const audioResponse = await fetch(data.previewUrl)
+        const arrayBuffer = await audioResponse.arrayBuffer()
+        ;(window as any).mixaiDecodeAndSetAudio(arrayBuffer)
+      }
     } catch (error) {
       console.error('Preview error:', error)
       toast({
@@ -276,9 +323,39 @@ export default function StandardMixPage() {
     }
   }
 
+  // ハモリ確定（Standard版は 0C）
+  const handleConfirmHarmony = async () => {
+    if (harmonyChoice === 'none' || isApplyingHarmony) return
+
+    setIsApplyingHarmony(true)
+    try {
+      const response = await fetch('/api/v1/mix/harmony/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId,
+          choice: harmonyChoice,
+          level_db: harmonyLevel,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast({
+          title: "ハモリ適用完了",
+          description: `ハモリが確定されました（${data.credits_delta ? `${data.credits_delta}C消費` : '0C'}）`
+        })
+      }
+    } catch (error) {
+      console.error('Error confirming harmony:', error)
+    } finally {
+      setIsApplyingHarmony(false)
+    }
+  }
+
   // 最終書き出し
-  const exportFinal = async (format: string) => {
-    if (!currentParams || isExporting) return
+  const handleExport = async (format: string) => {
+    if (isExporting) return
 
     setIsExporting(true)
     try {
@@ -290,9 +367,9 @@ export default function StandardMixPage() {
         },
         body: JSON.stringify({
           jobId,
-          params: currentParams,
+          params: mixParams,
           format,
-          targetLufs: -14
+          targetLufs: -14,
         })
       })
 
@@ -301,13 +378,9 @@ export default function StandardMixPage() {
       }
 
       const data = await response.json()
-      setExportUrl(data.fileUrl)
       
-      const formatLabel = format === 'flac' ? 'FLAC' : format === 'wav16' ? 'WAV 16-bit' : 'MP3'
-      toast({
-        title: "書き出し完了",
-        description: `${formatLabel}ファイルが生成されました（クレジット消費なし）`
-      })
+      // 結果ページへ遷移
+      router.push(`/result/${jobId}?harmony=${harmonyChoice}`)
     } catch (error) {
       console.error('Export error:', error)
       toast({
@@ -326,425 +399,336 @@ export default function StandardMixPage() {
     </div>
   }
 
-  if (!job || !currentParams) {
+  if (!job) {
     return <div className="text-center py-8">ジョブが見つかりません</div>
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* ヘッダー */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <Badge variant="default">Standard</Badge>
-              <h1 className="text-2xl font-bold">{job.title}</h1>
-            </div>
-            <p className="text-muted-foreground mt-1">
-              6軸MIX調整 • ジャンル最適化 • FLAC書き出し • クレジット消費なし
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/mypage')}
-          >
-            マイページに戻る
-          </Button>
-        </div>
-      </div>
+  // ジャンルプリセット定義
+  const GENRE_PRESETS = [
+    { key: 'auto', label: 'AI推定', description: 'AI が最適なジャンルを推定' },
+    { key: 'jpop', label: 'J-Pop', description: '明るく親しみやすい音作り' },
+    { key: 'rock', label: 'ROCK', description: 'パワフルでアタック感重視' },
+    { key: 'edm', label: 'EDM', description: 'デジタルで広がりのある音' },
+    { key: 'ballad', label: 'Ballad', description: '温かみのある音作り' },
+  ]
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* メイン調整パネル */}
-        <div className="lg:col-span-3">
-          <div className="space-y-6">
-            {/* ジャンル設定 */}
-            <Card>
+  // ハモリオプション定義
+  const HARMONY_OPTIONS = [
+    { key: 'none', label: 'なし', description: 'リード単体' },
+    { key: 'up_m3', label: 'Up 3度', description: '上の3度' },
+    { key: 'down_m3', label: 'Down 3度', description: '下の3度' },
+    { key: 'p5', label: 'Perfect 5th', description: '完全5度' },
+    { key: 'up_down', label: 'Up + Down', description: '上下3度同時' },
+  ]
+
+  return (
+    <TooltipProvider>
+      <div className="min-h-screen bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(16,185,129,0.08),transparent),linear-gradient(180deg,#0b0c0e,#0e0f12)] text-zinc-200">
+        <div className="mx-auto max-w-5xl px-4 py-8">
+          {/* ヘッダー */}
+          <header className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-bold text-white">MIXAI Standard</h1>
+                <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
+                  6軸調整 + ジャンル
+                </Badge>
+                {job?.ai_params && (
+                  <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400">
+                    AI解析済み
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-4 text-sm text-zinc-400">
+                <span>曲長: {job?.duration_s ? `${Math.floor(job.duration_s / 60)}:${String(job.duration_s % 60).padStart(2, '0')}` : '--:--'}</span>
+                <span>LUFS: {job?.measured_lufs ? `${job.measured_lufs.toFixed(1)}` : '--'}</span>
+                <span>TP: {job?.true_peak ? `${job.true_peak.toFixed(1)}` : '--'}</span>
+              </div>
+            </div>
+          </header>
+
+          {/* プレビュー編集エリア */}
+          <PreviewEditOnly />
+
+          {/* 音質調整パネル (Standard版カスタマイズ) */}
+          <div className="mt-8">
+            <MixTonePanelOnly
+              initialMix={mixParams}
+              onCommit={handleMixCommit}
+              onReset={handleMixReset}
+            />
+          </div>
+
+          {/* ジャンル選択セクション */}
+          <div className="mt-8">
+            <Card className="border-zinc-700 bg-[#0e0f12]">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Music2 className="w-5 h-5" />
-                  ジャンル設定
+                <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Music className="h-5 w-5" />
+                  ジャンル選択
+                  <span className="text-xs text-purple-400 font-normal">(Standard版)</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">楽曲ジャンル</label>
-                  <Select 
-                    value={currentParams.genre_target} 
-                    onValueChange={(value) => handleParamChange('genre_target', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {genreTargets.map(genre => (
-                        <SelectItem key={genre.value} value={genre.value}>
-                          {genre.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    ジャンルに応じてEQカーブと圧縮特性を最適化
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* MIXパラメータ */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    MIX パラメータ調整
-                  </CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={resetToAIBase}
-                    className="flex items-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    AI値に戻す
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* 基本パラメータ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Air */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium">Air - 高域の華やかさ</label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(currentParams.air * 100)}%
-                      </span>
-                    </div>
-                    <Slider
-                      value={[currentParams.air]}
-                      onValueChange={([value]) => handleParamChange('air', value)}
-                      max={1}
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-
-                  {/* Body */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium">Body - 中低域の厚み</label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(currentParams.body * 100)}%
-                      </span>
-                    </div>
-                    <Slider
-                      value={[currentParams.body]}
-                      onValueChange={([value]) => handleParamChange('body', value)}
-                      max={1}
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-
-                  {/* Vocal */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium">Vocal - 中域の明瞭さ</label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(currentParams.vocal * 100)}%
-                      </span>
-                    </div>
-                    <Slider
-                      value={[currentParams.vocal]}
-                      onValueChange={([value]) => handleParamChange('vocal', value)}
-                      max={1}
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-
-                  {/* Clarity (Standard専用) */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium">
-                        Clarity - 音像の分離
-                        <Badge variant="outline" className="ml-2 text-xs">Standard</Badge>
-                      </label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(currentParams.clarity * 100)}%
-                      </span>
-                    </div>
-                    <Slider
-                      value={[currentParams.clarity]}
-                      onValueChange={([value]) => handleParamChange('clarity', value)}
-                      max={1}
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-
-                  {/* Punch */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium">Punch - アタック感</label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(currentParams.punch * 100)}%
-                      </span>
-                    </div>
-                    <Slider
-                      value={[currentParams.punch]}
-                      onValueChange={([value]) => handleParamChange('punch', value)}
-                      max={1}
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-
-                  {/* Width */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium">Width - ステレオ幅</label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(currentParams.width * 100)}%
-                      </span>
-                    </div>
-                    <Slider
-                      value={[currentParams.width]}
-                      onValueChange={([value]) => handleParamChange('width', value)}
-                      max={1}
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-                </div>
-
-                {/* 詳細設定（折りたたみ） */}
-                <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-                  <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-primary">
-                    <Settings className="w-4 h-4" />
-                    詳細設定
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">De-esser 強度</label>
-                        <Slider
-                          value={[0.5]}
-                          max={1}
-                          min={0}
-                          step={0.01}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">MB時定数</label>
-                        <Select value="medium" onValueChange={() => {}}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fast">Fast</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="slow">Slow</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </CardContent>
-            </Card>
-
-            {/* ハモリアドリション */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Volume2 className="w-5 h-5" />
-                  ハモリアドリション
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* ハモリ試聴ボタン */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {harmonyOptions.map((option) => (
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                  {GENRE_PRESETS.map(preset => (
                     <Button
-                      key={option.id}
-                      variant={harmonyTrialMode === option.id ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => tryHarmony(option.id)}
-                      disabled={isGeneratingPreview}
-                      className="flex-col h-auto py-3"
+                      key={preset.key}
+                      variant={mixParams.genrePreset === preset.key ? "default" : "outline"}
+                      className="flex flex-col h-auto py-3"
+                      onClick={() => handleGenreChange(preset.key)}
                     >
-                      <span className="font-medium">{option.label.split(' + ')[1]}</span>
-                      <span className="text-xs opacity-70">{option.description}</span>
+                      <span className="font-medium">{preset.label}</span>
+                      <span className="text-xs opacity-80">{preset.description}</span>
                     </Button>
                   ))}
                 </div>
+                <div className="mt-3 text-xs text-zinc-400">
+                  <p>• ジャンル切替で差分係数を適用（AI適用値基準）</p>
+                  <p>• 手動AB視聴でジャンル効果を確認可能</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                {/* ハモリレベル */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium">Harmony Level</label>
-                    <span className="text-sm text-muted-foreground">
-                      {harmonyLevel.toFixed(1)} dB
-                    </span>
+          {/* 詳細調整セクション */}
+          <div className="mt-8">
+            <Card className="border-zinc-700 bg-[#0e0f12]">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    詳細調整
+                    <span className="text-xs text-purple-400 font-normal">(Standard版)</span>
                   </div>
-                  <Slider
-                    value={[harmonyLevel]}
-                    onValueChange={([value]) => setHarmonyLevel(value)}
-                    max={0}
-                    min={-12}
-                    step={0.1}
-                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                  >
+                    {showAdvanced ? '閉じる' : '開く'}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              {showAdvanced && (
+                <CardContent className="space-y-4">
+                  {/* De-esser帯域調整 */}
+                  <div>
+                    <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                      De-esser 帯域 (Standard版: マルチ帯域)
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-zinc-400">S音帯域</label>
+                        <Slider
+                          value={[mixParams.deEssDb * 0.6]} // S音帯域の比率
+                          onValueChange={([v]) => setMixParams(prev => ({ 
+                            ...prev, 
+                            deEssDb: prev.deEssDb 
+                          }))}
+                          max={12}
+                          min={0}
+                          step={0.5}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-zinc-400">SH音帯域</label>
+                        <Slider
+                          value={[mixParams.deEssDb * 0.4]} // SH音帯域の比率
+                          onValueChange={([v]) => setMixParams(prev => ({ 
+                            ...prev, 
+                            deEssDb: prev.deEssDb 
+                          }))}
+                          max={12}
+                          min={0}
+                          step={0.5}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MBコンプタイム定数 */}
+                  <div>
+                    <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                      MBコンプ タイム定数 (4band)
+                    </label>
+                    <Select value="medium" onValueChange={(value) => {}}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="タイム定数を選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fast">Fast (レスポンス重視)</SelectItem>
+                        <SelectItem value="medium">Medium (バランス)</SelectItem>
+                        <SelectItem value="slow">Slow (自然さ重視)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Side制御 + アパーチャ微調 */}
+                  <div>
+                    <label className="text-sm font-medium text-zinc-300 mb-2 block">
+                      ステレオ処理 (Side制御 + アパーチャ微調)
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-400">Side制御</span>
+                        <span className="text-xs text-zinc-400">{mixParams.stereoRatio.toFixed(2)}×</span>
+                      </div>
+                      <Slider
+                        value={[mixParams.stereoRatio]}
+                        onValueChange={([v]) => setMixParams(prev => ({ ...prev, stereoRatio: v }))}
+                        max={1.5}
+                        min={0.5}
+                        step={0.05}
+                      />
+                      <p className="text-xs text-zinc-400">
+                        • &lt;120Hz は Mono 固定
+                        • アパーチャ微調整機能搭載
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          </div>
+
+          {/* ハモリ・コントロール・書き出しセクション */}
+          <div className="mt-8">
+            <Card className="border-zinc-700 bg-[#0e0f12]">
+              <CardContent className="p-6 space-y-6">
+                {/* ハモリセクション */}
+                <div>
+                  <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <Volume2 className="h-5 w-5" />
+                    ハモリ追加
+                    <span className="text-xs text-green-400 font-normal">(0C - 無料)</span>
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    {HARMONY_OPTIONS.map(option => (
+                      <Button
+                        key={option.key}
+                        variant={harmonyChoice === option.key ? "default" : "outline"}
+                        className="flex flex-col h-auto py-3"
+                        onClick={() => setHarmonyChoice(option.key as any)}
+                      >
+                        <span className="font-medium">{option.label}</span>
+                        <span className="text-xs opacity-80">{option.description}</span>
+                      </Button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-4 mb-4">
+                    <label className="text-sm text-zinc-300">ハモリ音量:</label>
+                    <div className="flex-1 max-w-xs">
+                      <Slider
+                        value={[harmonyLevel * 100]}
+                        onValueChange={([v]) => setHarmonyLevel(v / 100)}
+                        disabled={harmonyChoice === 'none'}
+                      />
+                    </div>
+                    <span className="text-xs text-zinc-400 w-16">{(harmonyLevel * 100).toFixed(0)}%</span>
+                  </div>
+
+                  {harmonyChoice !== 'none' && (
+                    <Button 
+                      onClick={handleConfirmHarmony}
+                      disabled={isApplyingHarmony}
+                      className="bg-green-500 hover:bg-green-600"
+                    >
+                      <Wand2 className="mr-2 h-4 w-4" />
+                      {isApplyingHarmony ? 'ハモリ生成中...' : 'ハモリを確定 (0C)'}
+                    </Button>
+                  )}
                 </div>
 
-                {/* 確定ボタン */}
-                {harmonyTrialMode !== 'none' && (
-                  <div className="flex items-center gap-4">
-                    <Button
-                      onClick={applyHarmony}
-                      disabled={isApplyingHarmony}
-                      className="flex-1"
-                    >
-                      {isApplyingHarmony ? '適用中...' : `${harmonyOptions.find(h => h.id === harmonyTrialMode)?.label} を確定`}
-                    </Button>
-                    <Badge variant="secondary">0C</Badge>
-                  </div>
-                )}
+                {/* コントロール */}
+                <div className="border-t border-zinc-700 pt-6">
+                  <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={abComparison}
+                        onCheckedChange={setAbComparison}
+                      />
+                      <label className="text-sm text-zinc-300">A/B比較</label>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-zinc-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          原音とミックス後の比較再生 (-14 LUFS 正規化)
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
 
-                {job.harmony_choice && (
-                  <div className="text-sm text-muted-foreground">
-                    適用中: {harmonyOptions.find(h => h.id === job.harmony_choice)?.label}
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={preMaster}
+                        onCheckedChange={setPreMaster}
+                      />
+                      <label className="text-sm text-zinc-300">pre/postMaster</label>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-zinc-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          マスタリング前後の切り替え
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+
+                    <Button 
+                      onClick={handlePreview}
+                      disabled={isGeneratingPreview}
+                      className="bg-emerald-500 hover:bg-emerald-600"
+                    >
+                      <Play className="mr-2 h-4 w-4" />
+                      {isGeneratingPreview ? '生成中...' : '30秒プレビュー'}
+                    </Button>
                   </div>
-                )}
+                </div>
+
+                {/* 書き出し */}
+                <div className="border-t border-zinc-700 pt-6">
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-lg font-medium text-white">書き出し</h3>
+                    <Button 
+                      onClick={() => handleExport('mp3')}
+                      disabled={isExporting}
+                      className="bg-blue-500 hover:bg-blue-600"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      {isExporting ? '書き出し中...' : 'MP3'}
+                    </Button>
+                    <Button 
+                      onClick={() => handleExport('wav')}
+                      disabled={isExporting}
+                      variant="outline"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      WAV
+                    </Button>
+                    <Button 
+                      onClick={() => handleExport('flac')}
+                      disabled={isExporting}
+                      variant="outline"
+                      className="border-purple-500 text-purple-400 hover:bg-purple-500/20"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      FLAC
+                    </Button>
+                  </div>
+                  <div className="mt-2 text-xs text-zinc-400">
+                    <p>• Standard版: MP3/WAV/FLAC 対応</p>
+                    <p>• 8x オーバーサンプリング</p>
+                    <p>• 解析連動 Ducking (1-2dB)</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
-
-        {/* サイドバー */}
-        <div className="space-y-6">
-          {/* プレビュー */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">プレビュー</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <Button
-                  onClick={generatePreview}
-                  disabled={isGeneratingPreview}
-                  className="w-full"
-                >
-                  {isGeneratingPreview ? '生成中...' : '30秒プレビュー'}
-                </Button>
-
-                {/* Master Mode Toggle */}
-                <div className="flex gap-2">
-                  <Button
-                    variant={masterMode === 'pre' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMasterMode('pre')}
-                    className="flex-1"
-                  >
-                    pre Master
-                  </Button>
-                  <Button
-                    variant={masterMode === 'post' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMasterMode('post')}
-                    className="flex-1"
-                  >
-                    post Master
-                  </Button>
-                </div>
-
-                {previewUrl && (
-                  <div className="space-y-3">
-                    <audio
-                      controls
-                      src={previewUrl}
-                      className="w-full"
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                    />
-                    
-                    <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as any)}>
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="AI_BASE">AI適用値</TabsTrigger>
-                        <TabsTrigger value="USER_EDIT">調整後</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 書き出し */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">最終書き出し</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <Button
-                  onClick={() => exportFinal('mp3')}
-                  disabled={isExporting}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  MP3 320kbps
-                </Button>
-
-                <Button
-                  onClick={() => exportFinal('wav16')}
-                  disabled={isExporting}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  WAV 16-bit
-                </Button>
-
-                <Button
-                  onClick={() => exportFinal('flac')}
-                  disabled={isExporting}
-                  className="w-full"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  FLAC
-                </Button>
-              </div>
-
-              {exportUrl && (
-                <div className="space-y-2">
-                  <Badge variant="default" className="w-full justify-center">
-                    書き出し完了
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => window.open(exportUrl, '_blank')}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    ダウンロード
-                  </Button>
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>• MP3/WAV/FLAC対応</p>
-                <p>• LUFS: -14.0</p>
-                <p>• 10件/日まで無料</p>
-                <p>• クレジット消費なし</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }

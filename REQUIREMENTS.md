@@ -1,289 +1,240 @@
-REQUIREMENTS.md — うた整音（Uta Seion）/ Next.js + Supabase + npm
+制作コンテキスト（重要指示）：
+あなたはプロのウェブデザイナーです。限界を超えてください。
+使い勝手を最優先に、視覚ノイズを削り、最短行動（アップ→プレビュー→書き出し）を導くUIを設計・実装してください。AI然とした誇張表現・ネオン演出・魔法比喩は禁止。
 
-本要件は AGENTS.md の方針を反映した最新版です。
-重要：実装に伴い Supabase 側で実行する SQL・RLS 変更・バケット/スケジュール追加 などが発生した場合、実装後に必ず本書末尾「Supabase追加作業ログ（運用ルール）」に追記してください。
+0. プロダクト概要
 
-1. 製品概要
+サイト名：うた整音
 
-目的：歌い手が 伴奏2mix + ボーカル1本（各≤60秒） をアップロードすると、AI処理（自動頭出し・軽いテンポ補正・MIX/マスタリング）を行い、ショート向け完成音源を即ダウンロードできる。
+目的：ショート（〜60秒）向けに、ボーカルのタイミング補正／ピッチ補正／MIX → 最終マスタリングまで自動処理。
 
-主要価値：最短操作、安心できる実務的UI、軽い都度課金で“今すぐ仕上げ”を実現。
+ビジネスモデル：アカウント登録必須／初回無料（1回）／2回目以降 1回 ¥500（都度課金）。
 
-対象プラットフォーム：Web（モバイル優先・レスポンシブ）。
+保全：アップロードは非公開保存／7日以内に自動削除。
 
-技術スタック：Next.js（App Router）＋ Supabase（Auth/DB/Storage/RLS/Edge Functions）＋ 外部 Worker（Node + FFmpeg、任意で Python）。
+1. デザイン原則（アートディレクション）
 
-2. スコープ（MVP）
-入力
+情報設計：1画面=1目的。FV（ヒーロー）で“何ができるか”を10秒以内に理解。
 
-伴奏：WAV/MP3、≤60秒、≤20MB
+スタイル：8pxグリッド／角丸4–8px／影はごく薄く1段／落ち着いた1色アクセント。
 
-ボーカル：WAV 推奨/MP3 可、≤60秒、≤20MB
+タイポ：Noto Sans JP（H1 32–40 / H2 24–28 / 本文15–16px）。
 
-自動処理（MVP）
+アクセシビリティ：コントラストAA以上、フォーカスリング可視、44px以上のタップ領域、スクリーンリーダーの補助テキスト用意。
 
-頭出し（オフセット）：相互相関等で自動検出
+禁止：ガラスモーフィズム、強ネオン、AI風アイコン乱用、意味のないアニメ、過度な比喩。
 
-軽いテンポ補正：±3% 以内（ボーカル側）
+2. 情報アーキテクチャ（主要ページ）
 
-ボーカル処理：HPF(80–100Hz)、De-Esser、軽コンプ
+/（トップ）
 
-伴奏処理：歌唱区間のみ 1–3dB の薄いダッキング
+/upload（2スロット：伴奏／ボーカル）
 
-マスタリング：−14 LUFS / −1 dBTP を目標に正規化
+/preview（15秒プレビュー／Before/After）
 
-出力：MP3 320kbps（既定）／ WAV 16-bit（任意）
+/checkout（初回無料ならスキップ、以降¥500決済）
 
-非対応（次段候補）
+/status/:jobId → /result/:jobId（進捗／最終DL）
 
-ピッチ補正、音節単位タイムワープ、複数ボーカルの自動アライン、高度マルチバンド/EQマッチ高度版。
+/help（使い方）／/contact（問い合わせ）／/legal/（規約・プライバシー・権利）
 
-3. 人物像とユースケース（要約）
+3. トップページ要件（リッチコピー適用）
+3.1 ヘッダー（固定）
 
-主ペルソナ：歌ってみた投稿者・配信者。短尺（〜60秒）をすぐ仕上げたい。
+左：ロゴ「うた整音 / Uta Seion」
 
-代表的フロー：アップロード → プレビュー確認 → 都度課金 → 処理状況の確認 → ダウンロード。
+右：ナビ「使い方」「お問い合わせ」＋Primary CTA「無料で試す（要ログイン）」
 
-4. 情報設計 / ルーティング
-/                 （ランディング）
-/upload           （2ファイル投入 + 権利チェック）
-/preview          （15秒プレビュー + 推定オフセット表示）
-/checkout         （明細と同意、二重送信防止）
-/status/:jobId    （uploaded → paid → processing → done|failed）
-/result/:jobId    （試聴 + MP3/WAV ダウンロード + クレジット表記例）
-/help             （使い方・FAQ）
-/legal/terms, /legal/privacy, /legal/rights
-/contact
+3.2 ヒーロー（FV）
 
-5. UI 要件（“AIっぽいUI”禁止）
+H1：歌声を整えて、ショートをすぐ仕上げる
 
-スタイル契約（厳守）
+説明（2行以内）：
+「ズレを整え、音程をそっと寄せる。仕上げまで数分。あなたのテイクをそのまま前へ。」
 
-禁止：ガラスモーフィズム、強いネオン/発光、巨大角丸、ロボット/魔法表現、絵文字、過剰なスケルトン演出、曖昧/誇張コピー。
+CTA：Primary「無料で試す（要ログイン）」／Secondary「使い方を見る」
 
-推奨：実務的UI（8px グリッド、角丸 4–8px、最小限の影、落ち着いたアクセント 1 色、AA コントラスト）。コピーは動詞ベースの短文。
+ビジュアル：擬似UIカード＋波形（実処理に直結しないが“音の変化”を想起）
 
-アクセシビリティ：キーボード完結、フォーカス可視、aria-live で進捗告知、音声プレイヤーに適切ラベル。
+3.3 信頼・注意バナー（ヒーロー直下）
 
-/upload
+テキスト例：
 
-ドロップゾーン ×2（伴奏/ボーカル）。受理条件（WAV/MP3・60秒・20MB）を明記。
+「アップロードは非公開で保管。7日以内に自動削除します。」
 
-権利チェック必須：「DRM/市販カラオケ音源はアップロードしません。権利確認は自己責任です。」
+「権利の確認はご利用者の責任です。」
 
-条件未充足時は 「プレビューを作成」 ボタンを無効。
+「本サービスは法的助言を提供しません。」
 
-/preview
+3.4 Before/After デモ
 
-15秒プレビュー、推定オフセット表示、料金（例：¥150）と処理目安（1–2分）。
+トグルで切替／排他再生／15秒サンプル。
 
-「処理を開始」「戻る」。
+補足文：「デモは参考です。素材により結果は異なります。」
 
-/checkout
+3.5 使い方（3ステップ）
 
-明細、同意チェック、二重送信防止、支払い確定で /status/:jobId へ。
+アップロード（2ファイル）
 
-/status/:jobId
+自動処理（歌声のタイミング／音程を優しく補正し、バランスを整える）
 
-ステップバッジ・進捗バー・残り時間目安（擬似可）。
+ダウンロード（-14 LUFS / -1 dBTP目標）
 
-失敗時のみ ±2000ms 手動頭出しスライダーと再試行ボタン（無料）。
+3.6 特長（6カード：コピー強化）
 
-/result/:jobId
+すぐ分かる変化：Before/After を数クリックで。
 
-試聴、MP3/WAV ダウンロード、クレジット表記テンプレのコピー領域。
+やりすぎない補正：歌の表情はそのまま、気になるズレだけを整える。
 
-再レンダー/新規プロジェクト導線。
+直感UI：迷わない2ステップ。
 
-6. API 仕様（REST / OpenAPI First）
+軽くて速い：ブラウザ完結、数分で結果。
 
-POST /v1/jobs：ジョブ作成（DB 行作成、アップロード先情報を返す）
+安全な保存：非公開ストレージ／署名URLダウンロード。
 
-PATCH /v1/jobs/:id/files：instrumental_path/vocal_path を確定
+仕上げ済み：SNS向けの音量・ピークで書き出し。
 
-POST /v1/jobs/:id/pay：都度課金（成功時のみ render 許可）
+3.7 料金（コピー変更）
 
-POST /v1/jobs/:id/render：処理開始（status=processing に更新）
+見出し：初回無料、以降 1回 ¥500
 
-GET /v1/jobs/:id：現在状態とメタ（offset_ms, atempo 等）
+注記：処理失敗時は自動返金または無料再試行／書き出し時間の目安：1〜2分
 
-GET /v1/jobs/:id/download?format=mp3|wav：署名 URL を返す
+CTA：「今すぐ無料で試す」
 
-POST /v1/webhooks/payment：決済 Webhook（成功/失敗/返金、idempotency）
+3.8 FAQ（例・各60〜120字程度）
 
-エラー形式：{ code, message, details? } 統一。
-認証：Supabase Auth（authenticated 前提）。匿名運用はしない。
+初回無料の条件は？
+アカウント登録だけで1回分の書き出しが無料です。2回目以降は¥500/回の都度課金になります。
 
-7. データモデル（Supabase / SQL 概要）
-create type job_status as enum ('uploaded','paid','processing','done','failed');
+対応ファイルと上限は？
+WAV/MP3に対応。各60秒・20MB以内を目安にしてください。
 
-create table public.jobs (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) not null,
-  status job_status not null default 'uploaded',
-  instrumental_path text not null,
-  vocal_path         text not null,
-  result_path        text,
-  offset_ms          integer,
-  atempo             numeric,
-  target_lufs        numeric not null default -14,
-  true_peak          numeric,
-  error              text,
-  created_at         timestamptz default now(),
-  updated_at         timestamptz default now()
-);
+どれくらいで仕上がる？
+混雑状況にもよりますが、通常は1〜2分で書き出しが完了します。
 
--- updated_at 自動更新
-create or replace function public.set_updated_at()
-returns trigger language plpgsql as $$
-begin new.updated_at = now(); return new; end $$;
-drop trigger if exists trg_jobs_updated on public.jobs;
-create trigger trg_jobs_updated before update on public.jobs
-for each row execute function public.set_updated_at();
+やり直しはできる？
+タイミングが合わない場合は±2000msの微調整や候補区間で再レンダーできます。追課金は不要です。
 
--- RLS
-alter table public.jobs enable row level security;
-create policy "jobs_select_own" on public.jobs for select using (auth.uid() = user_id);
-create policy "jobs_insert_self" on public.jobs for insert with check (auth.uid() = user_id);
-create policy "jobs_update_own" on public.jobs for update using (auth.uid() = user_id);
+保存と削除は？
+ファイルは非公開のまま保管され、7日以内に自動削除されます。
 
-8. ストレージ設計（Supabase Storage / private）
+権利の扱いは？
+DRM付き音源や市販カラオケのアップロードは不可です。権利の確認はご利用者の責任でお願いします。
 
-バケット：uta-uploads（原稿）、uta-results（結果）— いずれも private。
+4. /upload（アップロードUI）
 
-推奨パス：users/{auth.uid}/jobs/{job_id}/…
+2スロット分離：「伴奏」「ボーカル」ドロップゾーンを常設。
 
-RLS（storage.objects）例：
+同時ドロップ時：割当モーダル（ラジオで役割選択・試聴・入替ボタン）。
 
-uta-uploads：自分の users/{uid}/… に対して read/insert/update を許可。
+クライアント検証：MIME（audio/*）／≤20MB／loadedmetadataで60秒超を警告。
 
-uta-results：自分の users/{uid}/… に対して read のみ。write は Service Role（Worker） のみ。
+状態：選択後はファイル名・サイズ・試聴ボタン・変更ボタン。
 
-配布は 署名 URL のみ。公開リンクは使用しない。
+次へ：プレビュー生成へ遷移（無料／要ログイン）。
 
-9. Worker 要件（Node + FFmpeg、Python 任意）
+5. /preview（プレビュー）
 
-処理：原稿 DL → オフセット検出（例：librosa） → FFmpeg 合成 → 結果 UL → jobs 更新。
+Before/After排他再生、波形の簡易表示。
 
-FFmpeg 概念チェーン：
+微調整UI：オフセット±2000ms、適用→瞬時再プレビュー（追課金なし）。
 
-[vocal] highpass→de-esser→compressor → (adelay) →
-[inst]  aresample→(adelay) →
-sidechaincompress（1–3dB）→
-aloudnorm（I=-14, TP=-1, LRA=11）
+CTA：「書き出す」→ 内部で無料枠チェック → OKなら即render、NGなら**/checkout**へ。
 
+6. /checkout（決済）
 
-テンポ補正：必要時のみボーカル側へ atempo=0.97–1.03。
+テキスト：「この書き出しは ¥500 です。初回無料は既にご利用済み。」
 
-出力：result_path、offset_ms、atempo、true_peak（任意）。
+ボタン：「¥500で書き出す」／「戻る」
 
-失敗時：status=failed とせず、UI に 手動スライダーを提示して無料再試行可能に（課金は 1 回のみ）。
+Idempotency-Key 必須。成功後 /status/:jobId。
 
-10. 課金要件
+7. /status → /result
 
-都度課金（例：¥150/曲）。
+進捗表示：解析→補正→MIX→マスタリング→完了
 
-成功時のみ /render へ遷移可。重複課金防止（Idempotency-Key）。
+ダウンロード：MP3（既定）／WAV（任意）／署名URL
 
-失敗時：自動返金または無料再試行を明記（UI/メール）。
+再試行：微調整して再レンダー（無料）
 
-11. 非機能要件（品質目標）
+8. マイクロコピー（共通）
 
-性能：60秒素材の 95% を 120秒以内 に処理完了（標準インスタンス）。
+空状態：「まだファイルがありません。伴奏とボーカルをそれぞれ選択してください。」
 
-信頼性：成功率 ≥ 98%（再試行含む）。
+アップロード中：「アップロード中…このままお待ちください。」
 
-セキュリティ：拡張子/MIME/秒数/サイズ検証、レート制限、CORS 最小化、CSRF（決済周辺）、署名 URL TTL=300 秒。
+エラー：「処理に失敗しました。数十秒後に再度お試しください。解決しない場合はお問い合わせからご連絡ください。」
 
-アクセシビリティ：WCAG 2.1 AA、キーボード完結。
+成功：「書き出しが完了しました。ダウンロードしてご確認ください。」
 
-保管：7日で自動削除（Edge Function or 外部 cron）。
+9. 技術・実装（UI基盤）
 
-12. 法務・信頼
+Next.js App Router + Tailwind。
 
-権利注意：DRM/市販カラオケ音源アップロードの禁止、権利確認はユーザー責任、法的助言は行わない旨。
+コンポーネント：Header、Hero、NoticeBanner、BeforeAfterDemo、Features、Steps、Pricing、FAQ、Footer、UploadPair（割当モーダル付）。
 
-公開ホスティングなし、DLは署名 URL のみ。
+計測（GA4/等）：landing_viewed / cta_try_free_clicked / upload_selected / preview_adjusted / claim_free_ok|denied / payment_succeeded|failed / job_completed|failed。
 
-通報窓口：権利侵害申し立てフォームを /legal/rights からリンク。
+10. 認証・課金（仕様要約）
 
-13. 監視・計測（KPI/イベント）
+Supabase Auth（メール/OAuth）。ログイン必須。
 
-イベント：upload_started/failed/succeeded, preview_ready, checkout_viewed, payment_succeeded/failed, job_enqueued, job_completed/failed, download_clicked（相関 ID 付与）。
+無料枠：ユーザー毎に1回。
 
-KPI：完走率、平均処理時間、失敗率、返金率、1 人当たり課金回数。
+¥500/回：2回目以降の書き出し時に決済。
 
-14. 受け入れ基準（Acceptance）
+返金/再試行：失敗時は自動返金または無料再試行を選択。
 
-≤60秒/≤20MB ×2 ファイル → 権利チェック → プレビュー → 決済 → 処理 → MP3/WAV DL が 3 分以内に完走。
+11. データモデル／SQL（Supabase）
 
-出力は −14 LUFS（±0.5）/ True Peak ≤ −1 dBTP。
+重要：実装に伴い Supabase 側で行う SQL や追加作業が発生した場合、必ず実装後にこのドキュメント末尾へ追記してください（作業日時・内容・適用環境・リスク）。
 
-自動頭出し失敗時、±2000ms スライダーで無料再試行が成功。
+例（抜粋）：profiles(free_credits_remaining int default 1, paid_renders_count int default 0, trial_claimed_at timestamptz)
 
-UI は キーボードのみで操作完了、絵文字/AI風演出なし。
+原子的無料消費：public.consume_free_credit()（既出の関数仕様でOK）
 
-異常（形式/サイズ/秒数/決済失敗）で具体的メッセージと再試行導線が表示。
+RLS：profiles_self（auth.uid一致）
 
-15. 環境変数（例）
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+12. 受け入れ基準（QA）
 
-PAYMENT_PROVIDER=stripe
-PAYMENT_SECRET=
+新規登録ユーザーが無料で1回の書き出しを完走できる。
 
-MAX_DURATION_SEC=60
-MAX_FILE_MB=20
-SIGNED_URL_TTL_SEC=300
-RETENTION_DAYS=7
+無料枠消費後は ¥500決済を経て書き出しが完了する。
 
-16. 実装時の注意（落とし穴対策）
+Before/Afterの排他再生が正しく機能する。
 
-重い音声処理は Next.js API では実行しない。Worker（常駐）へ委譲。
+アップロード検証（MIME/サイズ/秒数）がクライアントとサーバの両方で行われる。
 
-クライアント → Supabase Storage 直アップロード を基本とし、RLS とパス規約で制御。
+コントラストAA／フォーカス可視／キーボード操作のみで主要操作が可能。
 
-すべて private。公開 URL は使わず 署名 URL のみ。
+価格・保存期間・返金/再試行がページ内で明確に読める。
 
-RLS 不備は致命的：DB と Storage の両方で自ユーザーのみ操作可を確認。
+13. SEO / メタ
 
-7日削除のスケジュール実装を忘れない（完了後は本書末尾へ記載）。
+<title>：うた整音｜歌声を整えて、ショートをすぐ仕上げる
 
-17. 参考：検出/合成の閾値（初期値の目安）
+<meta name="description">：
+「ボーカルのタイミング／音程を自動調整して、数分で仕上げ。初回無料、以降1回¥500。」
 
-オフセット検出：onset 強度の相互相関最大点 → ±10ms 以内を目標。
+OGP：/og.png（ヒーローのUIサンプル＋簡潔コピー）
 
-De-Esser：i≈6（素材により ±2 dB）
+14. パフォーマンス
 
-Compressor：threshold -18dB, ratio 2:1, attack 15ms, release 120ms
+LCP ≤ 2.5s（3G相当でもFVテキストが即読める）
 
-ダッキング：threshold -20dB, ratio 2:1, mix 0.7
+画像は<img loading="lazy">／音源はpreload="none"
 
-Loudness：aloudnorm I=-14, TP=-1, LRA=11
+ページ初回JS < 180KB（gzip）
 
-18. Supabase追加作業ログ（運用ルール）
+15. 実装後追記用（運用ログ）
 
-規則：実装中に Supabase 側の追加作業（SQL/ポリシー/関数/スケジュール/バケット設定 等）が発生した場合、本セクションに必ず追記してください（日時・担当・変更点・理由を簡潔に）。
+ Supabase テーブル／関数／RLS 作成日時
 
-2025-09-__ / 担当: __
+ claim-free APIとIdempotency導入日時
 
-変更：uta-uploads / uta-results バケット作成（private）
+ 価格・FAQ差し替えコミットID
 
-変更：storage.objects RLS ポリシー適用（自分のパスのみ read/write、results は read のみ）
+ 決済Webhookの検証項目
 
-理由：個人領域以外のアクセス遮断
-
-2025-09-__ / 担当: __
-
-変更：Edge Function cleanup-expired 作成、RETENTION_DAYS=7 で古いオブジェクト削除（毎日 03:00 JST）
-
-理由：保管期間遵守とコスト削減
-
-2025-09-__ / 担当: __
-
-変更：jobs.true_peak numeric 追記（品質監視）
-
-理由：出力ピークの可観測性向上
-
-以上。本要件に準拠し、AGENTS.md に沿ってタスクを進めてください。Supabase 側の追加作業は 必ず本書 18 章を最新化してください。
+ アクセシビリティ監査メモ

@@ -1,8 +1,9 @@
 "use client"
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { apiFetch } from '../web/api'
 import { AuthGuard } from '../../components/AuthGuard'
-import { InterruptedSessionBanner } from '../../components/mix/InterruptedSessionBanner'
+import Header from '../../components/common/Header'
 
 const COLORS = {
   indigo: '#6366F1',
@@ -16,6 +17,7 @@ function clsx(...a: Array<string | false | null | undefined>) {
 }
 
 export default function MyPage() {
+  const router = useRouter()
   const [files, setFiles] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -42,7 +44,7 @@ export default function MyPage() {
       <main className="min-h-screen bg-[var(--bg)] text-gray-900">
         <StyleTokens />
         <AuroraBackground />
-        <Header />
+        <Header currentPage="mypage" showMainNavigation={false} />
         
         <div className="relative mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center mb-12">
@@ -54,8 +56,6 @@ export default function MyPage() {
             </p>
           </div>
 
-          {/* 中断セッション通知 */}
-          <InterruptedSessionBanner />
 
           {loading ? (
             <div className="glass-card p-8 text-center">
@@ -102,21 +102,52 @@ export default function MyPage() {
                 </div>
               )}
 
-              {/* ファイル一覧 */}
+              {/* ダッシュボードへの誘導 */}
+              <div className="glass-card p-6 mb-8 bg-gradient-to-r from-indigo-50 to-blue-50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">プロジェクト管理</h2>
+                    <p className="text-gray-600">
+                      作業中のプロジェクトの確認や、中断した作業の再開はダッシュボードから行えます
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push('/dashboard')}
+                    className="btn-primary px-6 py-3 flex items-center gap-2"
+                  >
+                    <DashboardIcon className="w-5 h-5" />
+                    ダッシュボードへ
+                  </button>
+                </div>
+              </div>
+
+              {/* 簡易ファイル情報 */}
               <div className="glass-card p-8">
-                <h2 className="font-semibold text-xl mb-6">ファイル一覧</h2>
+                <h2 className="font-semibold text-xl mb-6">保存ファイル概要</h2>
                 
                 {files && files.jobs.length > 0 ? (
-                  <div className="space-y-4">
-                    {files.jobs.map((job: any) => (
-                      <FileItem key={job.id} job={job} />
-                    ))}
+                  <div>
+                    <p className="text-gray-600 mb-4">
+                      {files.jobs.length}件のファイルが保存されています
+                    </p>
+                    <p className="text-sm text-gray-500 mb-6">
+                      詳細な管理はダッシュボードから行えます
+                    </p>
+                    <button
+                      onClick={() => router.push('/dashboard')}
+                      className="btn-primary px-6 py-2"
+                    >
+                      ダッシュボードで詳細を見る
+                    </button>
                   </div>
                 ) : (
                   <div className="text-center py-12">
                     <FolderIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">まだファイルがアップロードされていません</p>
-                    <button className="btn-primary mt-4 px-6 py-2">
+                    <button 
+                      className="btn-primary mt-4 px-6 py-2"
+                      onClick={() => router.push('/upload')}
+                    >
                       最初のファイルをアップロード
                     </button>
                   </div>
@@ -130,114 +161,6 @@ export default function MyPage() {
   )
 }
 
-function FileItem({ job }: { job: any }) {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'text-green-600 bg-green-50'
-      case 'processing': return 'text-blue-600 bg-blue-50'
-      case 'failed': return 'text-red-600 bg-red-50'
-      default: return 'text-gray-600 bg-gray-50'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'completed': return '完了'
-      case 'processing': return '処理中'
-      case 'failed': return 'エラー'
-      case 'uploaded': return 'アップロード済み'
-      default: return status
-    }
-  }
-
-  return (
-    <div className={clsx(
-      "border rounded-lg p-4 transition-all",
-      job.isExpired 
-        ? "border-red-200 bg-red-50/50" 
-        : job.isNearExpiration 
-        ? "border-amber-200 bg-amber-50/50" 
-        : "border-gray-200 bg-white/50 hover:bg-white/80"
-    )}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <span className={clsx(
-              "px-2 py-1 rounded-full text-xs font-medium",
-              getStatusColor(job.status)
-            )}>
-              {getStatusText(job.status)}
-            </span>
-            
-            {job.preset_key && (
-              <span className="px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-700">
-                {job.preset_key}
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-1 text-sm">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-600">作成: {formatDate(job.created_at)}</span>
-            </div>
-            
-            {job.hasFiles && (
-              <div className="flex items-center gap-2">
-                <DocumentIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-600">
-                  ファイル: {[job.instrumental_path, job.vocal_path, job.harmony_path, job.result_path].filter(Boolean).length}個
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="text-right">
-          {job.isExpired ? (
-            <div className="text-red-600">
-              <div className="font-medium text-sm">削除済み</div>
-              <div className="text-xs">保存期限が過ぎました</div>
-            </div>
-          ) : (
-            <div className={clsx(
-              job.isNearExpiration ? "text-amber-600" : "text-gray-600"
-            )}>
-              <div className="font-medium text-sm">
-                残り{job.remainingDays}日
-              </div>
-              <div className="text-xs">
-                {formatDate(job.expirationDate)}に削除
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {job.isNearExpiration && !job.isExpired && (
-        <div className="mt-3 p-3 bg-amber-100 rounded-lg">
-          <div className="flex items-start gap-2">
-            <AlertIcon className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-amber-800">
-              <div className="font-medium">削除予定日が近づいています</div>
-              <div>プランをアップグレードすると保存期間が延長されます</div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // =========================================
 // Shared Components
@@ -251,6 +174,9 @@ function StyleTokens() {
         --indigo: ${COLORS.indigo};
         --blue: ${COLORS.blue};
         --magenta: ${COLORS.magenta};
+        --brand: #6366F1;
+        --brandAlt: #9B6EF3;
+        --accent: ${COLORS.blue};
       }
       
       .glass-card {
@@ -274,40 +200,16 @@ function StyleTokens() {
 function AuroraBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
-      <div className="absolute -top-40 -right-32 w-96 h-96 rounded-full opacity-20 blur-3xl animate-pulse" 
+      <div className="absolute -top-40 -right-32 w-96 h-96 rounded-full opacity-35 blur-3xl" 
            style={{ background: `linear-gradient(135deg, ${COLORS.indigo} 0%, ${COLORS.blue} 100%)` }} />
-      <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-15 blur-3xl animate-pulse" 
+      <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-30 blur-3xl" 
            style={{ background: `linear-gradient(135deg, ${COLORS.blue} 0%, ${COLORS.magenta} 100%)` }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-5 blur-3xl animate-pulse"
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl"
            style={{ background: `linear-gradient(135deg, ${COLORS.magenta} 0%, ${COLORS.indigo} 100%)` }} />
     </div>
   )
 }
 
-function Header() {
-  return (
-    <header className="relative border-b border-white/10 bg-white/40 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">M</span>
-              </div>
-              <span className="font-bold text-xl text-gray-900">MIXAI</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
-              ログアウト
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-  )
-}
 
 // =========================================
 // Icons
@@ -354,10 +256,10 @@ function CalendarIcon({ className }: { className?: string }) {
   )
 }
 
-function DocumentIcon({ className }: { className?: string }) {
+function DashboardIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
     </svg>
   )
 }

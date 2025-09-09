@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserSupabase } from '../storage/supabaseClient'
+import { supabase } from '../lib/supabase'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -9,17 +9,28 @@ interface AuthGuardProps {
   redirectTo?: string
 }
 
-export function AuthGuard({ children, fallback, redirectTo = '/auth' }: AuthGuardProps) {
+export function AuthGuard({ children, fallback, redirectTo = '/auth/login' }: AuthGuardProps) {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const supabase = createBrowserSupabase()
+  // supabaseクライアントは既にインポート済み
 
   useEffect(() => {
     // 初期認証状態確認
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)
+      
+      // ユーザーがいない場合は auth/login にリダイレクト
+      if (!session?.user) {
+        const currentPath = window.location.pathname
+        // uploadページから来た場合はリダイレクト先を指定
+        if (currentPath === '/upload') {
+          router.push(`/auth/login?redirect=${encodeURIComponent('/upload')}`)
+        } else {
+          router.push('/auth/login')
+        }
+      }
     })
 
     // 認証状態変更の監視
@@ -29,7 +40,7 @@ export function AuthGuard({ children, fallback, redirectTo = '/auth' }: AuthGuar
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [router])
 
   if (loading) {
     return (
@@ -45,11 +56,8 @@ export function AuthGuard({ children, fallback, redirectTo = '/auth' }: AuthGuar
   }
 
   if (!user) {
-    if (fallback) {
-      return <>{fallback}</>
-    }
-
-    return <LoginPrompt onLogin={() => router.push(redirectTo)} />
+    // AuthGuardはもうリダイレクト処理を行うので、ここは表示しない
+    return null
   }
 
   return <>{children}</>
@@ -103,7 +111,7 @@ function LoginPrompt({ onLogin }: { onLogin: () => void }) {
 export function useAuth() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserSupabase()
+  // supabaseクライアントは既にインポート済み
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

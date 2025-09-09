@@ -2,9 +2,6 @@ import path from 'path';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Docker環境での最適化
-  output: 'standalone',
-  
   // SEO最適化設定
   poweredByHeader: false,
   
@@ -97,7 +94,9 @@ const nextConfig = {
   // 実験的機能の有効化
   experimental: {
     // サーバーコンポーネントの最適化
-    serverComponentsExternalPackages: ['ffmpeg-static', 'execa']
+    serverComponentsExternalPackages: ['ffmpeg-static', 'execa'],
+    // パフォーマンス最適化
+    scrollRestoration: true
   },
 
   // Webpack設定
@@ -127,15 +126,24 @@ const nextConfig = {
 
   // 画像最適化設定（SEO向上）
   images: {
-    domains: [],
+    domains: ['galohsnyjzobnrovztch.supabase.co', 'lh3.googleusercontent.com'],
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 86400,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
   // 圧縮設定
   compress: true,
+
+  // スワイプファイルの最適化
+  swcMinify: true,
+
+  // パフォーマンス最適化
+  productionBrowserSourceMaps: false,
+  reactStrictMode: true,
 
   // TypeScript設定
   typescript: {
@@ -145,6 +153,27 @@ const nextConfig = {
   // ESLint設定
   eslint: {
     ignoreDuringBuilds: false,
+  },
+
+  // リダイレクト設定
+  async redirects() {
+    return [
+      {
+        source: '/home',
+        destination: '/',
+        permanent: true,
+      },
+    ]
+  },
+
+  // リライト設定
+  async rewrites() {
+    return [
+      {
+        source: '/api/health',
+        destination: '/api/v1/health',
+      },
+    ]
   }
 }
 

@@ -2,22 +2,97 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '../../components/common/Header';
 import StyleTokens from '../../components/common/StyleTokens';
 import Footer from '../../components/common/Footer';
+import { apiFetch } from '../web/api';
+import { CreditService } from '../../lib/credits';
 
-type Meta = { inst?:{name:string;durationSec:number}; vox?:{name:string;durationSec:number}; startedAt?:number };
+type Meta = { 
+  inst?:{name:string;durationSec:number}; 
+  vox?:{name:string;durationSec:number}; 
+  startedAt?:number;
+  jobId?: string;
+  theme?: string;
+  harmony?: string;
+};
 
-export default function ProcessingPage(){
+function ProcessingContent(){
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const jobId = searchParams.get('job');
+  const harmony = searchParams.get('harmony') || 'upper';
+  const theme = searchParams.get('theme') || 'clean_light';
+  
   const meta:Meta|undefined = React.useMemo(()=>{
-    try{ return JSON.parse(localStorage.getItem('utaseion:jobMeta')||'null')||undefined; }catch{ return undefined; }
-  },[]);
+    try{ 
+      const stored = JSON.parse(localStorage.getItem('utaseion:jobMeta')||'null')||undefined;
+      return stored ? { ...stored, jobId, harmony, theme } : { jobId, harmony, theme };
+    }catch{ 
+      return { jobId, harmony, theme }; 
+    }
+  },[jobId, harmony, theme]);
+  
   const [pct,setPct] = React.useState(0);
   const [stage,setStage] = React.useState<'processing'|'mixing'|'mastering'>('processing');
+  const [error, setError] = React.useState<string | null>(null);
+  const [holdId, setHoldId] = React.useState<string | null>(null);
 
+  // MIX処理の開始
+  React.useEffect(() => {
+    if (!jobId) return;
+    
+    const startProcessing = async () => {
+      try {
+        // クレジットホールド
+        const creditService = new CreditService();
+        const userRes = await apiFetch('/api/v1/auth/me');
+        const userData = await userRes.json();
+        
+        if (userData?.id) {
+          const holdResult = await creditService.holdCredits({
+            jobId,
+            userId: userData.id,
+            amount: 1.0, // 基本1クレジット
+            type: 'hold',
+            description: 'MIX処理'
+          });
+          
+          if (!holdResult.success) {
+            setError(holdResult.error || 'クレジット予約に失敗しました');
+            return;
+          }
+          
+          setHoldId(holdResult.holdId || null);
+        }
+        
+        // MIX処理を開始
+        const res = await apiFetch(`/api/v1/jobs/${jobId}/process`, {
+          method: 'POST',
+          body: JSON.stringify({
+            harmony: harmony,
+            theme: theme // 選択されたテーマ
+          })
+        });
+        
+        if (!res.ok) {
+          throw new Error('MIX処理の開始に失敗しました');
+        }
+      } catch (err) {
+        console.error('Processing error:', err);
+        setError(err instanceof Error ? err.message : '処理中にエラーが発生しました');
+      }
+    };
+    
+    startProcessing();
+  }, [jobId, harmony, theme]);
+  
+  // 進捗アニメーション
   React.useEffect(()=>{
+    if (error) return;
+    
     const id = setInterval(()=>{
       setPct(p=>{
         const n = Math.min(100, p+2);
@@ -27,15 +102,47 @@ export default function ProcessingPage(){
       });
     },120);
     return ()=>clearInterval(id);
-  },[stage]);
+  },[stage, error]);
 
+  // 完了時の処理
   React.useEffect(()=>{
-    if(pct>=100){
-      const used = localStorage.getItem('utaseion:freeUsed')==='1';
-      localStorage.setItem('utaseion:lastPrice', used ? '500' : '0');
-      router.push('/complete');
+    if(pct>=100 && !error){
+      const completeProcessing = async () => {
+        try {
+          // クレジット消費確定
+          if (holdId) {
+            const creditService = new CreditService();
+            const userRes = await apiFetch('/api/v1/auth/me');
+            const userData = await userRes.json();
+            
+            if (userData?.id) {
+              await creditService.consumeCredits(holdId, userData.id);
+            }
+          }
+          
+          // ユーザーのプランを確認してMIXエディターへ遷移
+          const userRes = await apiFetch('/api/v1/auth/me');
+          const userData = await userRes.json();
+          
+          // プランを確認
+          const subRes = await apiFetch('/api/v1/subscriptions/active');
+          let planCode = 'prepaid'; // デフォルト
+          
+          if (subRes.ok) {
+            const subData = await subRes.json();
+            planCode = subData?.plan_code || 'prepaid';
+          }
+          
+          // プランに応じたMIXエディターへ遷移
+          router.push(`/mix/${planCode}/${jobId}?theme=${theme}&harmony=${harmony}`);
+        } catch (err) {
+          console.error('Completion error:', err);
+        }
+      };
+      
+      completeProcessing();
     }
-  },[pct,router]);
+  },[pct, router, error, holdId, jobId]);
 
   const deleteAt = React.useMemo(()=>{
     const base = (meta?.startedAt ?? Date.now()) + 7*24*60*60*1000;
@@ -51,6 +158,17 @@ export default function ProcessingPage(){
         <div className="text-center mb-8">
           <h1 className="text-2xl font-semibold">AI音声処理中</h1>
           <p className="mt-2 text-gray-600">高品質なMIXを作成しています</p>
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700">{error}</p>
+              <button 
+                onClick={() => router.push('/upload')}
+                className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                アップロードに戻る
+              </button>
+            </div>
+          )}
         </div>
         
         <div className="card p-6">
@@ -64,7 +182,12 @@ export default function ProcessingPage(){
                 <div className="h-full bg-indigo-600 transition-[width] duration-100" style={{width:`${pct}%`}} />
               </div>
               <div className="mt-2 text-sm text-slate-600">{pct}%完了</div>
-              <div className="mt-1 text-sm text-slate-600">現在の状態：{stage}</div>
+              <div className="mt-1 text-sm text-slate-600">
+                現在の状態：
+                {stage === 'processing' && 'AI解析中'}
+                {stage === 'mixing' && 'MIX処理中'}
+                {stage === 'mastering' && 'マスタリング中'}
+              </div>
             </div>
           </div>
 
@@ -139,4 +262,16 @@ function CalendarIcon({ className }: { className?: string }) {
       <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
   )
+}
+
+export default function ProcessingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <ProcessingContent />
+    </Suspense>
+  );
 }

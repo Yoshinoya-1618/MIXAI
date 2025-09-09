@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = await authenticateUser(request)
     const userId = user.id
-    const { jobId, params, format = 'mp3', targetLufs = -14 } = await request.json()
+    const { jobId, params, format = 'mp3', targetLufs = -14, includeHarmony = false } = await request.json()
 
     if (!jobId) {
       throw new ApiError(400, 'jobId is required')
@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
       params: exportParams,
       format,
       targetLufs,
-      planCode
+      planCode,
+      includeHarmony: includeHarmony && job.harmony_generated
     })
 
     // ログとパラメータを保存
@@ -142,12 +143,13 @@ async function performExport(options: {
   format: string
   targetLufs: number
   planCode: string
+  includeHarmony?: boolean
 }) {
   const { execa } = await import('execa')
   const path = await import('path')
   const fs = await import('fs/promises')
 
-  const { jobId, userId, job, params, format, targetLufs, planCode } = options
+  const { jobId, userId, job, params, format, targetLufs, planCode, includeHarmony } = options
   const startTime = Date.now()
 
   try {
@@ -187,7 +189,11 @@ async function performExport(options: {
       format,
       targetLufs,
       oversampling,
-      planCode
+      planCode,
+      harmonySettings: includeHarmony ? {
+        choice: job.harmony_choice,
+        level_db: job.harmony_level_db
+      } : null
     })
 
     const ffmpegResult = await execa('ffmpeg', ffmpegArgs, {
@@ -257,8 +263,9 @@ function buildExportCommand(options: {
   targetLufs: number
   oversampling: number
   planCode: string
+  harmonySettings?: { choice: string; level_db: number } | null
 }): string[] {
-  const { vocalPath, instPath, outputPath, params, format, targetLufs, oversampling } = options
+  const { vocalPath, instPath, outputPath, params, format, targetLufs, oversampling, harmonySettings } = options
 
   const args = [
     '-i', vocalPath,
@@ -266,7 +273,7 @@ function buildExportCommand(options: {
   ]
 
   // 高品質フィルターチェーン
-  const filterChain = buildAdvancedFilterChain(params, targetLufs, oversampling)
+  const filterChain = buildAdvancedFilterChain(params, targetLufs, oversampling, harmonySettings)
   args.push('-filter_complex', filterChain)
 
   // フォーマット別エンコード設定
@@ -293,7 +300,7 @@ function buildExportCommand(options: {
 /**
  * 高品質フィルターチェーン構築
  */
-function buildAdvancedFilterChain(params: any, targetLufs: number, oversampling: number): string {
+function buildAdvancedFilterChain(params: any, targetLufs: number, oversampling: number, harmonySettings?: { choice: string; level_db: number } | null): string {
   const filters: string[] = []
 
   // 1. オフセット補正
@@ -349,13 +356,22 @@ function buildAdvancedFilterChain(params: any, targetLufs: number, oversampling:
   // 4. インスト処理（原則BYPASS、必要時のみRescue）
   filters.push('[1:a]anull[inst]')
 
-  // 5. ミックス
+  // 5. ハモリ生成（ある場合）
+  if (harmonySettings && harmonySettings.choice !== 'none') {
+    // モック実装
+    const harmonyFilters = 'anull'
+    filters.push(`[vocal_processed]${harmonyFilters}[vocal_with_harmony]`)
+  } else {
+    filters.push('[vocal_processed]anull[vocal_with_harmony]')
+  }
+
+  // 6. ミックス
   const vocalLevel = 1.0
   const instLevel = params.punch ? Math.max(0.7, 1.0 - params.punch * 0.1) : 1.0
 
-  filters.push(`[vocal_processed][inst]amix=inputs=2:weights=${vocalLevel} ${instLevel}[mixed]`)
+  filters.push(`[vocal_with_harmony][inst]amix=inputs=2:weights=${vocalLevel} ${instLevel}[mixed]`)
 
-  // 6. ステレオ処理
+  // 7. ステレオ処理
   if (params.width > 0) {
     const widthFactor = 1.0 + params.width * 0.1
     filters.push(`[mixed]extrastereo=m=${widthFactor}[stereo]`)
@@ -363,7 +379,7 @@ function buildAdvancedFilterChain(params: any, targetLufs: number, oversampling:
     filters.push('[mixed]anull[stereo]')
   }
 
-  // 7. フェード
+  // 8. フェード
   const fadeFilters = []
   if (params.fade_in > 0) {
     fadeFilters.push(`afade=t=in:d=${params.fade_in}`)

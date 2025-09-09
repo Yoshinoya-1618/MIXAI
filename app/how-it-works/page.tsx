@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Header from '../../components/common/Header'
 
 // =========================================
 // Palette & Tokens (共通)
@@ -28,7 +29,7 @@ export default function HowItWorksPage() {
       <AuroraBackground />
 
       {/* Header */}
-      <Header />
+      <Header currentPage="help" />
 
       {/* Hero */}
       <section className="relative">
@@ -52,7 +53,7 @@ export default function HowItWorksPage() {
             <StepCard
               number={1}
               title="アップロード"
-              description="伴奏とボーカルを選択。ハモリも追加できます。"
+              description="instとボーカルを選択。ハモリも追加できます。"
               icon={<FolderIcon className="w-6 h-6" />}
               details={[
                 "ドラッグ&ドロップまたはタップで選択",
@@ -66,14 +67,15 @@ export default function HowItWorksPage() {
             
             <StepCard
               number={2}
-              title="自動処理"
-              description="AIが音程・タイミング・音量を自然に整えます。"
+              title="AI解析・MIX・マスタリング"
+              description="AIが解析してMIX→マスタリングまで自動で完成。"
               icon={<MusicalNoteIcon className="w-6 h-6" />}
               details={[
-                "自動頭出し（オフセット検出）",
+                "AIによる曲解析（Key/BPM/ジャンル）",
+                "テーマ選択で最適なMIX",
                 "ピッチ・タイミング補正",
                 "配信基準音量調整（-14 LUFS）",
-                "AIハモリ生成（選択時）"
+                "マスタリング処理"
               ]}
               active={activeStep === 2}
               onClick={() => setActiveStep(2)}
@@ -135,7 +137,7 @@ export default function HowItWorksPage() {
           <div className="glass-card p-8">
             <h2 className="text-2xl font-semibold mb-4">今すぐ始めてみましょう</h2>
             <p className="text-gray-600 mb-6">
-              7日間無料お試し。すぐに歌ってみた動画を作れます。
+              会員登録で7日間無料トライアル。Creator機能を体験できます。
             </p>
             <button className="btn-primary text-lg px-8 py-3">
               無料で試す
@@ -434,7 +436,7 @@ function Troubleshooting() {
 function StyleTokens() {
   return (
     <style>{`
-      :root { --indigo: ${COLORS.indigo}; --blue: ${COLORS.blue}; --magenta: ${COLORS.magenta}; --bg: ${COLORS.bg}; }
+      :root { --indigo: ${COLORS.indigo}; --blue: ${COLORS.blue}; --magenta: ${COLORS.magenta}; --bg: ${COLORS.bg}; --brand: #6366F1; --brandAlt: #9B6EF3; --accent: ${COLORS.blue}; }
       .glass-card { background: radial-gradient(120% 140% at 10% 10%, rgba(255,255,255,.7), rgba(255,255,255,.35) 45%, rgba(255,255,255,.22) 100%); border: 1px solid rgba(255,255,255,.5); backdrop-filter: saturate(160%) blur(14px); border-radius: 12px; box-shadow: 0 4px 18px rgba(99,102,241,.08); }
       .btn-primary { background: linear-gradient(135deg, var(--indigo), var(--blue) 50%, var(--magenta)); color: white; border-radius: 12px; padding: 10px 16px; font-weight: 600; letter-spacing: .01em; box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 6px 18px rgba(99,102,241,.25);}  
       .btn-primary:hover { filter: brightness(1.02); transform: translateY(-1px) rotate(.5deg); transition: transform .15s ease, filter .2s ease; }
@@ -470,53 +472,6 @@ function HeroVisual() {
   )
 }
 
-function Header() {
-  return (
-    <header className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/40 bg-white/70 border-b border-white/50">
-      <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Logo />
-          <span className="sr-only">MIXAI - 歌い手向けオンラインMIXサービス</span>
-        </div>
-        
-        <nav className="hidden lg:flex items-center gap-6">
-          <HeaderLink href="/">ホーム</HeaderLink>
-          <HeaderLink href="/pricing">料金</HeaderLink>
-          <HeaderLink href="/how-it-works" active>使い方</HeaderLink>
-          <HeaderLink href="/features">特長</HeaderLink>
-          <HeaderLink href="/help">よくある質問</HeaderLink>
-        </nav>
-
-        <div className="flex items-center gap-3">
-          <HeaderLink href="/auth/login">ログイン</HeaderLink>
-          <button className="btn-primary">無料で試す</button>
-        </div>
-      </div>
-    </header>
-  )
-}
-
-function Logo() {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-6 w-6 rounded-xl bg-gradient-to-br from-[var(--indigo)] via-[var(--blue)] to-[var(--magenta)] shadow-sm" />
-      <span className="font-semibold tracking-tight">MIXAI</span>
-    </div>
-  )
-}
-
-function HeaderLink({ href, children, active = false }: { href: string; children: React.ReactNode; active?: boolean }) {
-  return (
-    <a 
-      href={href} 
-      className={`text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded px-1 py-1 ${
-        active ? 'text-indigo-600 font-medium' : 'text-gray-700 hover:text-gray-900'
-      }`}
-    >
-      {children}
-    </a>
-  )
-}
 
 function Footer() {
   return (

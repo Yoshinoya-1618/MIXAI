@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '../web/api'
-import { AuthGuard } from '../../components/AuthGuard'
+import Header from '../../components/common/Header'
+import Footer from '../../components/common/Footer'
+import StyleTokens from '../../components/common/StyleTokens'
+import { createClient } from '../../lib/supabase'
 
-// =========================================
-// Palette & Tokens (ランディングページと共通)
-// =========================================
 const COLORS = {
   indigo: '#6366F1',
   blue: '#22D3EE', 
@@ -22,614 +22,745 @@ function clsx(...a: Array<string | false | null | undefined>) {
 export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
   const [loading, setLoading] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
   const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    // ユーザーセッションを確認
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    checkUser()
+
+    // セッション変更を監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   const handlePlanSelect = async (planCode: string) => {
-    if (planCode === 'lite') {
-      // Liteプランは無料なので直接マイページへ
-      router.push('/mypage')
+    // チェックアウトページへ直接遷移
+    router.push(`/checkout?plan=${planCode}`)
+    return
+    
+    /* 以下の処理は不要になったためコメントアウト
+    // Supabaseのセッションを確認
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      // 未ログインの場合はログインページへ
+      router.push(`/auth/login?callbackUrl=/pricing`)
       return
     }
-
+    
     setLoading(planCode)
+    
     try {
-      const res = await apiFetch('/api/v1/payments/checkout', {
+      // Stripe Checkout Sessionを作成
+      const response = await fetch('/api/checkout/session', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          type: 'subscription',
-          planCode
-        })
+          plan_code: planCode,
+        }),
       })
-
-      if (res.ok) {
-        const { url } = await res.json()
-        window.location.href = url
-      } else {
-        console.error('Failed to create checkout session')
+      
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session')
       }
+      
+      const { checkout_url } = await response.json()
+      
+      // Stripe Checkoutへリダイレクト
+      window.location.href = checkout_url
     } catch (error) {
       console.error('Error creating checkout session:', error)
-    } finally {
+      alert('エラーが発生しました。もう一度お試しください。')
       setLoading(null)
     }
+    */
   }
 
   return (
-    <AuthGuard>
-    <main className="min-h-screen bg-[var(--bg)] text-gray-900">
-      {/* Global style tokens */}
+    <main className="min-h-screen text-gray-900 bg-[var(--bg)]">
       <StyleTokens />
-
-      {/* Background aura + particles */}
+      <Header currentPage="pricing" />
       <AuroraBackground />
-
-      {/* Header */}
-      <Header />
-
-      {/* Hero */}
-      <section className="relative">
-        <HeroVisual />
-        <div className="relative mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pt-16 pb-12">
-          <div className="text-center">
-            <h1 className="font-semibold tracking-[-0.02em] text-[32px] sm:text-[40px] leading-[1.25]">
-              1曲＝1クレジット。迷わず選べる3プラン。
-            </h1>
-            <p className="mt-4 text-lg text-gray-700 max-w-2xl mx-auto">
-              録った歌を"聴かれる音"に。まずは7日間無料でお試し。
-            </p>
-          </div>
+      
+      <div className="relative mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center mb-16">
+          <h1 className="font-semibold tracking-[-0.02em] text-[32px] sm:text-[40px] leading-[1.25] mb-4">
+            プラン料金
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            あなたの用途に最適なプランをお選びください。すべてのプランで高品質なAI音声処理をご利用いただけます
+          </p>
         </div>
-      </section>
 
-      {/* Billing Toggle */}
-      <section className="relative">
-        <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pb-8">
-          <div className="flex justify-center">
-            <div className="glass-card p-1 flex items-center">
-              <button
-                onClick={() => setBillingCycle('monthly')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  billingCycle === 'monthly'
-                    ? 'bg-indigo-500 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+        {/* 7日間無料トライアルの大きなバナー */}
+        <div className="mb-12">
+          <div className="glass-card p-8 bg-gradient-to-br from-indigo-50 via-white to-blue-50 border-2 border-indigo-200">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 mb-4">
+                <SparklesIcon className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3">
+                会員登録で7日間無料トライアル！
+              </h2>
+              <p className="text-lg text-gray-700 mb-6">
+                クレジットカード登録不要でCreator機能を体験
+              </p>
+              
+              <div className="grid md:grid-cols-3 gap-4 mb-6 text-left max-w-3xl mx-auto">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <CheckIcon className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Creator全機能</div>
+                    <div className="text-xs text-gray-600">カスタムテーマ・超高精度</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <CheckIcon className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">無償1クレジット</div>
+                    <div className="text-xs text-gray-600">1曲分のフルMIX可能</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <CheckIcon className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">クレカ登録不要</div>
+                    <div className="text-xs text-gray-600">メール認証だけでOK</div>
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => window.location.href = '/auth/register'}
+                className="btn-primary px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
               >
-                月払い
+                今すぐ無料で登録
               </button>
-              <button
-                onClick={() => setBillingCycle('yearly')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  billingCycle === 'yearly'
-                    ? 'bg-indigo-500 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                年払い
-                <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
-                  2ヶ月無料
-                </span>
-              </button>
+              
+              <p className="text-xs text-gray-600 mt-4">
+                <svg className="inline w-4 h-4 mr-1 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                7日後にプリペイドプランへ自動移行
+              </p>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Pricing Cards */}
-      <section className="relative">
-        <div className="mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 pb-16">
-          <div className="grid md:grid-cols-3 gap-6">
-            <PricingCard
-              name="Lite"
-              price={billingCycle === 'monthly' ? 1200 : 1000}
-              credits="3.0"
-              preset="Basic（3種）"
-              subtitle="はじめての投稿にちょうどいい"
-              description="月3曲ペースで気軽に試せるスタンダード入門。"
-              concurrent={1}
-              features={[
-                "Clean Light：クセを抑えてクリアに",
-                "Soft Room：うっすら響きで歌ってみた感",
-                "Vocal Lift Lite：声を少し前に",
-                "ピッチ／タイミング調整、ノイズ抑制、SNS向け音量",
-                "同時保存：1テイク（あとから選べる）",
-                "データ保持：7日間"
-              ]}
-              targetUser="月1〜3本、まずは「きれいな音」を体験したい"
-              billingCycle={billingCycle}
-              loading={loading}
-            />
+        {/* Pricing Cards */}
+        <div className="grid md:grid-cols-4 gap-6 mb-16">
+          {/* Prepaid Plan (No subscription) */}
+          <div className="glass-card p-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-2">プリペイド</h3>
+            <p className="text-gray-600 mb-6 text-sm">プランなし・都度購入</p>
             
-            <PricingCard
-              name="Standard"
-              price={billingCycle === 'monthly' ? 2280 : 1900}
-              credits="6.0"
-              preset="Basic＋Pop（計7種）"
-              subtitle="週1投稿の主力プラン"
-              description="迷ったらコレ。曲に合わせて雰囲気を選べる。"
-              concurrent={2}
-              features={[
-                "Wide Pop：広がりと抜け",
-                "Warm Ballad：やわらかく温かい",
-                "Rap Tight：リズムを際立てタイトに",
-                "Idol Bright：明るくきらっと映える",
-                "ピッチ／タイミング調整、ノイズ抑制、SNS向け音量",
-                "同時保存：2テイクまで",
-                "データ保持：30日間",
-                "優先処理：あり（待ち時間が短い）"
-              ]}
-              targetUser="週1で投稿、曲調に合わせて「雰囲気」を選びたい"
-              popular={true}
-              billingCycle={billingCycle}
-              loading={loading}
-            />
-            
-            <PricingCard
-              name="Creator"
-              price={billingCycle === 'monthly' ? 3680 : 3070}
-              credits="10.0"
-              preset="Basic＋Pop＋Studio（計12種）"
-              subtitle="活動の中心に。仕上がりを作品基準へ"
-              description="多作・コラボ・コンテスト応募にも。"
-              concurrent={3}
-              features={[
-                "Studio Shine：プロっぽい艶と奥行き",
-                "Airy Sparkle：空気感と透明感",
-                "Live Stage：臨場感あるステージ風",
-                "Vintage Warm：少しレトロで太い",
-                "Night Chill：落ち着いた近接感 ほか",
-                "微調整スライダー：声の前後感／響き量／明るさ",
-                "同時保存：3テイクまで",
-                "データ保持：90日間",
-                "最優先処理：あり"
-              ]}
-              targetUser="週2〜3本、作品として「質」を安定させたい"
-              hasFineAdjustment={true}
-              billingCycle={billingCycle}
-              loading={loading}
-            />
-          </div>
-        </div>
-      </section>
+            <div className="mb-6">
+              <div className="text-2xl font-bold mb-2">¥700</div>
+              <div className="text-sm text-gray-600">1クレジット</div>
+              <div className="text-sm font-semibold text-green-600 mt-1">必要な分だけ購入</div>
+              <div className="text-xs text-gray-600 mt-1">
+                <span className="font-medium">1曲のMIX = 1クレジット</span>
+              </div>
+              <div className="text-xs text-gray-500">
+                サブスク不要・無期限有効
+              </div>
+            </div>
 
-      {/* Credit System Explanation */}
-      <CreditExplanation />
+            <ul className="space-y-3 mb-8 text-left">
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">テーマ5種選択</div>
+                  <div className="text-xs text-gray-600">汎用3種+ジャンル2種</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">高精度処理</div>
+                  <div className="text-xs text-gray-600">ピッチ±20cent、ノイズ-10dB</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <StarIcon className="w-4 h-4 text-purple-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium text-purple-700">+0.5クレジットでCreator機能</div>
+                  <div className="text-xs text-purple-600 font-semibold">カスタムテーマ・超高精度</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">出力形式</div>
+                  <div className="text-xs text-gray-600">MP3/WAV/FLAC（保存7日間）</div>
+                </div>
+              </li>
+            </ul>
 
-      {/* FAQ */}
-      <PricingFAQ />
-
-      {/* CTA */}
-      <section className="relative">
-        <div className="mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-16 text-center">
-          <div className="glass-card p-8">
-            <h2 className="text-2xl font-semibold mb-4">まずは7日間無料で体験</h2>
-            <p className="text-gray-600 mb-6">
-              20クレジット分。AIハモリ生成も1本体験できます。
-            </p>
-            <button className="btn-primary text-lg px-8 py-3">
-              無料でお試し開始
+            <button
+              onClick={() => window.location.href = '/credits'}
+              className="w-full btn-primary py-3 h-12 flex items-center justify-center"
+            >
+              クレジット購入へ
             </button>
-            <p className="text-xs text-gray-500 mt-3">
-              クレジットカード登録不要 • いつでもキャンセル可能
+          </div>
+
+          {/* Lite Plan */}
+          <div className="glass-card p-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-gray-400 to-gray-500 flex items-center justify-center mx-auto mb-6">
+              <SparklesIcon className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Lite</h3>
+            <p className="text-gray-600 mb-6 text-sm">手軽に始める基本プラン</p>
+            
+            <div className="mb-6">
+              <div className="text-3xl font-bold mb-2">¥1,780</div>
+              <div className="text-sm text-gray-600">月額（税込）</div>
+              <div className="text-sm font-semibold text-indigo-600 mt-1">月間3クレジット</div>
+              <div className="text-xs text-gray-600 mt-1">
+                <span className="font-medium">月間3曲</span>までMIX可能
+              </div>
+              <div className="text-xs text-gray-500">
+                実効単価：約¥593/曲
+              </div>
+            </div>
+
+            <ul className="space-y-3 mb-8 text-left">
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">テーマ3種選択</div>
+                  <div className="text-xs text-gray-600">Natural/Clear/Warm</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">標準精度処理</div>
+                  <div className="text-xs text-gray-600">シンプルで迅速</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">ハモリ生成</div>
+                  <div className="text-xs text-gray-600">無料</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">出力形式</div>
+                  <div className="text-xs text-gray-600">MP3/WAV（保存7日間）</div>
+                </div>
+              </li>
+            </ul>
+
+            <button
+              onClick={() => handlePlanSelect('lite')}
+              disabled={loading === 'lite'}
+              className="w-full btn-primary py-3 h-12 flex items-center justify-center"
+            >
+              {loading === 'lite' ? '処理中...' : 'このプランを選ぶ'}
+            </button>
+          </div>
+
+          {/* Standard Plan */}
+          <div className="glass-card p-6 text-center border-2 border-indigo-200 relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-xs font-semibold rounded-full">
+              人気No.1
+            </div>
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center mx-auto mb-6">
+              <MusicIcon className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Standard</h3>
+            <p className="text-gray-600 mb-6 text-sm">プロ品質を目指す方へ</p>
+            
+            <div className="mb-6">
+              <div className="text-3xl font-bold mb-2">¥3,980</div>
+              <div className="text-sm text-gray-600">月額（税込）</div>
+              <div className="text-sm font-semibold text-indigo-600 mt-1">月間6クレジット</div>
+              <div className="text-xs text-gray-600 mt-1">
+                <span className="font-medium">月間6曲</span>までMIX可能
+              </div>
+              <div className="text-xs text-gray-500">
+                実効単価：約¥663/曲
+              </div>
+            </div>
+
+            <ul className="space-y-3 mb-8 text-left">
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">テーマ5種+AI推奨</div>
+                  <div className="text-xs text-gray-600">ジャンル別最適化</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">高精度処理</div>
+                  <div className="text-xs text-gray-600">ピッチ±20cent、ノイズ-10dB</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">テーマ変更1回可</div>
+                  <div className="text-xs text-gray-600">選び直しできる</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">出力形式拡張</div>
+                  <div className="text-xs text-gray-600">MP3/WAV/FLAC（15日間）</div>
+                </div>
+              </li>
+            </ul>
+
+            <button
+              onClick={() => handlePlanSelect('standard')}
+              disabled={loading === 'standard'}
+              className="w-full btn-primary py-3 h-12 flex items-center justify-center"
+            >
+              {loading === 'standard' ? '処理中...' : 'おすすめプランを選ぶ'}
+            </button>
+          </div>
+
+          {/* Creator Plan */}
+          <div className="glass-card p-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center mx-auto mb-6">
+              <StarIcon className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Creator</h3>
+            <p className="text-gray-600 mb-6 text-sm">全機能を使いこなすプロ向け</p>
+            
+            <div className="mb-6">
+              <div className="text-3xl font-bold mb-2">¥7,380</div>
+              <div className="text-sm text-gray-600">月額（税込）</div>
+              <div className="text-sm font-semibold text-indigo-600 mt-1">月間10クレジット</div>
+              <div className="text-xs text-gray-600 mt-1">
+                <span className="font-medium">月間10曲</span>までMIX可能
+              </div>
+              <div className="text-xs text-gray-500">
+                実効単価：約¥738/曲
+              </div>
+              <div className="mt-3">
+                <span className="inline-block px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">
+                  HQ・ノイズ抑制付き
+                </span>
+              </div>
+            </div>
+
+            <ul className="space-y-3 mb-8 text-left">
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">カスタムテーマ機能</div>
+                  <div className="text-xs text-gray-600">ブレンド・微調整・保存</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">超高精度処理</div>
+                  <div className="text-xs text-gray-600">ピッチ±10cent、ノイズ-14dB</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">参照曲解析</div>
+                  <div className="text-xs text-gray-600">目標曲の特性を模倣</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium">最長保存期間</div>
+                  <div className="text-xs text-gray-600">30日間・最優先処理</div>
+                </div>
+              </li>
+            </ul>
+
+            <button
+              onClick={() => handlePlanSelect('creator')}
+              disabled={loading === 'creator'}
+              className="w-full btn-primary py-3 h-12 flex items-center justify-center"
+            >
+              {loading === 'creator' ? '処理中...' : 'このプランを選ぶ'}
+            </button>
+          </div>
+        </div>
+
+        {/* 機能比較表 */}
+        <div className="mt-24 mb-16">
+          <h2 className="text-2xl font-semibold text-center mb-8">機能比較表</h2>
+          <div className="glass-card overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left px-6 py-4 font-medium text-gray-900">機能</th>
+                  <th className="text-center px-4 py-4 font-medium text-gray-900">未加入（無料）</th>
+                  <th className="text-center px-4 py-4 font-medium text-gray-900">Lite</th>
+                  <th className="text-center px-4 py-4 font-medium text-gray-900">Standard</th>
+                  <th className="text-center px-4 py-4 font-medium text-gray-900">Creator</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                <tr>
+                  <td className="px-6 py-4 font-medium">月額料金</td>
+                  <td className="text-center px-4 py-4">¥0</td>
+                  <td className="text-center px-4 py-4">¥1,780</td>
+                  <td className="text-center px-4 py-4">¥3,980</td>
+                  <td className="text-center px-4 py-4">¥7,380</td>
+                </tr>
+                <tr className="bg-gray-50/50">
+                  <td className="px-6 py-4 font-medium">月間クレジット</td>
+                  <td className="text-center px-4 py-4">0</td>
+                  <td className="text-center px-4 py-4">3</td>
+                  <td className="text-center px-4 py-4">6</td>
+                  <td className="text-center px-4 py-4">10</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 font-medium">フルMIX・マスタリング</td>
+                  <td className="text-center px-4 py-4">
+                    <div className="text-sm">1クレジット/曲</div>
+                    <div className="text-xs text-purple-600 font-semibold">+0.5クレジットでCreator機能</div>
+                  </td>
+                  <td className="text-center px-4 py-4"><CheckIcon className="w-5 h-5 text-green-600 mx-auto" /></td>
+                  <td className="text-center px-4 py-4"><CheckIcon className="w-5 h-5 text-green-600 mx-auto" /></td>
+                  <td className="text-center px-4 py-4"><CheckIcon className="w-5 h-5 text-green-600 mx-auto" /></td>
+                </tr>
+                <tr className="bg-gray-50/50">
+                  <td className="px-6 py-4 font-medium">ハモリ生成（オプション）</td>
+                  <td className="text-center px-4 py-4 text-sm">無料</td>
+                  <td className="text-center px-4 py-4 text-sm">無料</td>
+                  <td className="text-center px-4 py-4 text-sm">無料</td>
+                  <td className="text-center px-4 py-4 text-sm">無料</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 font-medium">音量・音質調整項目</td>
+                  <td className="text-center px-4 py-4">
+                    <div className="text-sm">6項目</div>
+                    <div className="text-xs text-purple-600">+0.5クレジットで7項目</div>
+                  </td>
+                  <td className="text-center px-4 py-4 text-sm">5項目</td>
+                  <td className="text-center px-4 py-4 text-sm">6項目</td>
+                  <td className="text-center px-4 py-4 text-sm">7項目</td>
+                </tr>
+                <tr className="bg-gray-50/50">
+                  <td className="px-6 py-4 font-medium">テーマ選択</td>
+                  <td className="text-center px-4 py-4">
+                    <div className="text-sm">5種類</div>
+                    <div className="text-xs text-purple-600">+0.5クレジットでカスタム</div>
+                  </td>
+                  <td className="text-center px-4 py-4 text-sm">3種類</td>
+                  <td className="text-center px-4 py-4 text-sm">5種類+AI推奨</td>
+                  <td className="text-center px-4 py-4 text-sm">カスタムテーマ</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 font-medium">HQマスター</td>
+                  <td className="text-center px-4 py-4">
+                    <div className="text-xs text-purple-600 font-semibold">+0.5クレジットで込み</div>
+                  </td>
+                  <td className="text-center px-4 py-4">—</td>
+                  <td className="text-center px-4 py-4">—</td>
+                  <td className="text-center px-4 py-4"><CheckIcon className="w-5 h-5 text-green-600 mx-auto" /></td>
+                </tr>
+                <tr className="bg-gray-50/50">
+                  <td className="px-6 py-4 font-medium">強力ノイズ抑制</td>
+                  <td className="text-center px-4 py-4">
+                    <div className="text-xs text-purple-600 font-semibold">+0.5クレジットで込み</div>
+                  </td>
+                  <td className="text-center px-4 py-4">—</td>
+                  <td className="text-center px-4 py-4">—</td>
+                  <td className="text-center px-4 py-4"><CheckIcon className="w-5 h-5 text-green-600 mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 font-medium">リファレンス解析</td>
+                  <td className="text-center px-4 py-4">
+                    <div className="text-xs text-purple-600 font-semibold">+0.5クレジットで利用可</div>
+                  </td>
+                  <td className="text-center px-4 py-4">—</td>
+                  <td className="text-center px-4 py-4">—</td>
+                  <td className="text-center px-4 py-4"><CheckIcon className="w-5 h-5 text-green-600 mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 font-medium">保存期間</td>
+                  <td className="text-center px-4 py-4">7日</td>
+                  <td className="text-center px-4 py-4">7日</td>
+                  <td className="text-center px-4 py-4">15日</td>
+                  <td className="text-center px-4 py-4">30日</td>
+                </tr>
+                <tr className="bg-gray-50/50">
+                  <td className="px-6 py-4 font-medium">実行優先度</td>
+                  <td className="text-center px-4 py-4">通常</td>
+                  <td className="text-center px-4 py-4">通常</td>
+                  <td className="text-center px-4 py-4">優先</td>
+                  <td className="text-center px-4 py-4">最優先</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 font-medium">書き出し形式</td>
+                  <td className="text-center px-4 py-4 text-sm">MP3/WAV/FLAC</td>
+                  <td className="text-center px-4 py-4 text-sm">MP3/WAV</td>
+                  <td className="text-center px-4 py-4 text-sm">MP3/WAV/FLAC</td>
+                  <td className="text-center px-4 py-4 text-sm">MP3/WAV/FLAC/32bit float</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 無料トライアルCTA */}
+        <div className="text-center mb-16">
+          <div className="p-8 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg">
+            <h3 className="text-2xl font-bold mb-4">まずは無料でお試し！</h3>
+            <p className="text-lg mb-6 opacity-95">
+              会員登録で7日間Creator機能を無料体験
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <button 
+                onClick={() => window.location.href = '/auth/register'}
+                className="px-8 py-3 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-gray-100 transition-all"
+              >
+                無料で会員登録
+              </button>
+              <div className="text-sm text-white/90">
+                <div>✓ クレジットカード登録不要</div>
+                <div>✓ 無償1クレジット付与</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        {/* クレジット購入セクション */}
+        <div className="mb-16 p-8 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-semibold mb-4">サブスク不要のクレジット購入</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              必要な時に必要な分だけ購入。コンビニ・銀行振込でもOK
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h3 className="font-semibold text-lg mb-4">1クレジットでできること</h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-indigo-600 font-bold">1C</span>
+                  </div>
+                  <div>
+                    <div className="font-medium">フルMIX&マスタリング（1曲分）</div>
+                    <div className="text-sm text-gray-600">最大60秒の楽曲を完全自動処理</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-green-600 font-bold">0C</span>
+                  </div>
+                  <div>
+                    <div className="font-medium">ハモリ全編生成</div>
+                    <div className="text-sm text-gray-600">全プラン無料で利用可能</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-purple-600 text-xs font-bold">+0.5C</span>
+                  </div>
+                  <div>
+                    <div className="font-medium">Creator機能アップグレード</div>
+                    <div className="text-sm text-gray-600">7軸調整・HQマスター・強力ノイズ抑制</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-lg mb-4">クレジットパック</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white p-4 rounded-lg text-center">
+                  <div className="font-bold text-2xl text-indigo-600">2クレジット</div>
+                  <div className="text-sm text-gray-600">¥1,580</div>
+                  <div className="text-xs text-gray-500">¥790/曲</div>
+                </div>
+                <div className="bg-white p-4 rounded-lg text-center">
+                  <div className="font-bold text-2xl text-indigo-600">5クレジット</div>
+                  <div className="text-sm text-gray-600">¥3,800</div>
+                  <div className="text-xs text-gray-500">¥760/曲</div>
+                </div>
+                <div className="bg-white p-4 rounded-lg text-center border-2 border-indigo-300">
+                  <div className="font-bold text-2xl text-indigo-600">8クレジット</div>
+                  <div className="text-sm text-gray-600">¥5,920</div>
+                  <div className="text-xs text-green-600 font-semibold">¥740/曲</div>
+                  <div className="text-xs text-indigo-600">おすすめ</div>
+                </div>
+                <div className="bg-white p-4 rounded-lg text-center">
+                  <div className="font-bold text-2xl text-indigo-600">12クレジット</div>
+                  <div className="text-sm text-gray-600">¥8,400</div>
+                  <div className="text-xs text-green-600 font-semibold">¥700/曲</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white/80 p-6 rounded-xl mb-6">
+            <h4 className="font-semibold mb-3">💡 どちらがお得？</h4>
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="font-medium text-indigo-600 mb-1">クレジット購入がおすすめの方</div>
+                <ul className="text-gray-600 space-y-1">
+                  <li>・月と1〜2曲しかMIXしない</li>
+                  <li>・不定期に利用したい</li>
+                  <li>・クレジットカードを使いたくない</li>
+                </ul>
+              </div>
+              <div>
+                <div className="font-medium text-indigo-600 mb-1">サブスクがおすすめの方</div>
+                <ul className="text-gray-600 space-y-1">
+                  <li>・月と3曲以上定期的にMIXする</li>
+                  <li>・安定した単価で利用したい</li>
+                  <li>・繰り越しで無駄なく使いたい</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <button 
+              onClick={() => window.location.href = '/credits'}
+              className="btn-primary px-8 py-3 mr-4"
+            >
+              クレジットを購入する
+            </button>
+            <p className="text-xs text-gray-600 mt-3">
+              コンビニ決済・銀行振込対応
             </p>
           </div>
         </div>
-      </section>
 
-      {/* Footer */}
+
+        {/* FAQ Section */}
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-8">よくある質問</h2>
+          <div className="grid gap-4 max-w-3xl mx-auto">
+            <div className="glass-card p-6 text-left">
+              <h3 className="font-medium mb-2">プラン変更はいつでもできますか？</h3>
+              <p className="text-gray-600">
+                はい、マイページからいつでもプラン変更・解約が可能です。変更は次回請求時から適用されます。
+              </p>
+            </div>
+            <div className="glass-card p-6 text-left">
+              <h3 className="font-medium mb-2">クレジットを使い切ったときは？</h3>
+              <p className="text-gray-600">
+                クレジットパックを2クレジット（¥1,580）から購入できます。コンビニ・銀行振込でも購入可能です。サブスクリプションの場合は、次回更新日（加入日から1ヶ月後）に新しいクレジットが付与されます。
+              </p>
+            </div>
+            <div className="glass-card p-6 text-left">
+              <h3 className="font-medium mb-2">クレジットの繰り越しはできますか？</h3>
+              <p className="text-gray-600">
+                サブスクリプションプランでは、未使用のクレジットは翌月に自動的に繰り越されます。繰り越し分から優先的に消費されます。ただし、プラン解約時には繰り越し分も含めて失効しますのでご注意ください。都度購入のクレジットは有効期限なく使用できます。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
       <Footer />
     </main>
-    </AuthGuard>
-  )
-}
-
-// ========================================= 
-// Pricing Button Component
-// =========================================
-interface PricingButtonProps {
-  name: string
-  popular?: boolean
-  loading: string | null
-  onSelect: () => void
-}
-
-function PricingButton({ name, popular, loading, onSelect }: PricingButtonProps) {
-  const isLoading = loading === name.toLowerCase()
-  
-  return (
-    <button 
-      onClick={onSelect}
-      disabled={isLoading}
-      className={clsx(
-        "w-full mt-6 py-3 px-4 rounded-lg font-medium transition",
-        isLoading && "opacity-50 cursor-not-allowed",
-        popular 
-          ? 'btn-primary' 
-          : 'bg-white/70 border border-gray-200 text-gray-900 hover:bg-white'
-      )}
-    >
-      {isLoading ? (
-        <div className="flex items-center justify-center gap-2">
-          <LoadingIcon className="w-4 h-4 animate-spin" />
-          <span>処理中...</span>
-        </div>
-      ) : (
-        `${name}プランを選ぶ`
-      )}
-    </button>
-  )
-}
-
-function LoadingIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-    </svg>
-  )
-}
-
-// =========================================
-// Components
-// =========================================
-interface PricingCardProps {
-  name: string
-  price: number
-  credits: string
-  preset: string
-  subtitle?: string
-  description?: string
-  concurrent: number
-  features: string[]
-  targetUser?: string
-  popular?: boolean
-  hasFineAdjustment?: boolean
-  billingCycle: 'monthly' | 'yearly'
-  loading: string | null
-}
-
-function PricingCard({ 
-  name, 
-  price, 
-  credits, 
-  preset, 
-  subtitle,
-  description,
-  concurrent, 
-  features,
-  targetUser,
-  popular = false,
-  hasFineAdjustment = false,
-  billingCycle,
-  loading
-}: PricingCardProps) {
-  return (
-    <div className={`glass-card p-6 relative ${popular ? 'ring-2 ring-indigo-500' : ''}`}>
-      {popular && (
-        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-          <span className="bg-indigo-500 text-white text-sm px-3 py-1 rounded-full">
-            人気プラン
-          </span>
-        </div>
-      )}
-      
-      <div className="text-center">
-        <h3 className="text-xl font-semibold">{name}</h3>
-        {subtitle && (
-          <p className="mt-1 text-sm text-gray-600 font-medium">{subtitle}</p>
-        )}
-        {description && (
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
-        )}
-        
-        <div className="mt-4 flex items-baseline justify-center">
-          <span className="text-3xl font-bold">¥{price.toLocaleString()}</span>
-          <span className="text-sm text-gray-500 ml-1">
-            /{billingCycle === 'monthly' ? '月' : '年'}
-          </span>
-        </div>
-        
-        {billingCycle === 'yearly' && (
-          <p className="text-sm text-green-600 mt-1">
-            月額¥{Math.round(price / 12).toLocaleString()}相当
-          </p>
-        )}
-
-        <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
-          <div className="text-sm text-indigo-600">毎月付与</div>
-          <div className="text-2xl font-bold text-indigo-700">{credits}</div>
-          <div className="text-sm text-indigo-600">クレジット</div>
-        </div>
-
-        <div className="mt-4">
-          <div className="text-sm font-medium text-gray-900">使えるMIXレシピ</div>
-          <div className="text-sm text-indigo-600">{preset}</div>
-          {hasFineAdjustment && (
-            <span className="inline-block mt-1 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-              微調整可
-            </span>
-          )}
-        </div>
-      </div>
-
-      <ul className="mt-6 space-y-3">
-        {features.map((feature, index) => (
-          <li key={index} className="flex items-start gap-2">
-            <CheckIcon className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
-            <span className="text-sm text-gray-700">{feature}</span>
-          </li>
-        ))}
-      </ul>
-
-      {targetUser && (
-        <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-          <div className="text-xs font-medium text-slate-600">こんな人</div>
-          <div className="text-sm text-slate-700 mt-1">{targetUser}</div>
-        </div>
-      )}
-
-      <PricingButton 
-        name={name} 
-        popular={popular} 
-        loading={loading}
-        onSelect={() => {
-          // プラン選択処理
-          console.log(`Selected plan: ${name.toLowerCase()}`)
-        }}
-      />
-    </div>
-  )
-}
-
-function CreditExplanation() {
-  const examples = [
-    {
-      title: "基本MIX",
-      description: "inst＋ボーカルの基本MIX",
-      cost: "1.0C",
-      color: "bg-blue-50 text-blue-700 border-blue-200"
-    },
-    {
-      title: "ハモリアップロード",  
-      description: "自分で録ったハモリを足す",
-      cost: "+0.5C",
-      color: "bg-green-50 text-green-700 border-green-200"
-    },
-    {
-      title: "AIハモリ生成",
-      description: "上下・5度などを自動生成",
-      cost: "+1.0C",
-      color: "bg-purple-50 text-purple-700 border-purple-200"
-    }
-  ]
-
-  return (
-    <section className="relative">
-      <div className="mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-semibold">クレジットの仕組み</h2>
-          <p className="mt-3 text-gray-600">
-            1曲の仕上げ＝1クレジット。使わなかったクレジットは翌月に繰り越し。不足時は必要分だけ自動追加で安心。
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-6 mb-12">
-          {examples.map((example, index) => (
-            <div key={index} className="glass-card p-6 text-center">
-              <div className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${example.color}`}>
-                {example.cost}
-              </div>
-              <h3 className="mt-3 font-semibold">{example.title}</h3>
-              <p className="text-sm text-gray-600 mt-1">{example.description}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="glass-card p-6">
-          <h3 className="text-lg font-semibold text-center mb-4">利用例</h3>
-          <div className="space-y-4 max-w-md mx-auto">
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <div className="font-medium text-sm mb-1">基本MIXのみ</div>
-              <div className="text-right font-semibold">1.0C</div>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <div className="font-medium text-sm mb-1">基本MIX＋AIハモリ</div>
-              <div className="text-right font-semibold">2.0C</div>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <div className="font-medium text-sm mb-1">基本MIX＋自分のハモリ追加</div>
-              <div className="text-right font-semibold">1.5C</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mt-8 glass-card p-6">
-          <h3 className="text-lg font-semibold text-center mb-4">「MIXレシピ」について</h3>
-          <p className="text-sm text-gray-600 text-center max-w-2xl mx-auto">
-            全プランで基本の整音（ピッチ・タイミング・ノイズ・SNS音量）は共通。<br />
-            違いは選べる"雰囲気（レシピ）"の数と微調整の幅です。
-          </p>
-        </div>
-        
-        <div className="mt-8 glass-card p-6">
-          <h3 className="text-lg font-semibold text-center mb-4">えらび方のコツ</h3>
-          <div className="grid sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-            <div className="text-center">
-              <div className="text-sm font-medium text-indigo-600">月1〜3本</div>
-              <div className="text-sm text-gray-700 mt-1">まずは Lite</div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm font-medium text-indigo-600">週1本</div>
-              <div className="text-sm text-gray-700 mt-1">曲調で雰囲気を選べる Standard</div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm font-medium text-indigo-600">週2本以上／作品性重視</div>
-              <div className="text-sm text-gray-700 mt-1">微調整もできる Creator</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function PricingFAQ() {
-  const faqs = [
-    {
-      q: "クレジットは繰り越せますか？",
-      a: "はい、翌月まで自動繰り越しされます。"
-    },
-    {
-      q: "足りなくなったら？",
-      a: "その曲に必要な最小分だけ自動追加。設定でオフにもできます。"
-    },
-    {
-      q: "年払いはお得？",
-      a: "月払いよりお得な割引があります。途中解約も月割で安心。"
-    },
-    {
-      q: "プラン変更は？",
-      a: "いつでも即時反映。差額は自動で調整します。"
-    },
-    {
-      q: "無料体験の範囲は？",
-      a: "20クレジット分。AIハモリも試せます。"
-    },
-    {
-      q: "解約方法",
-      a: "マイページの**[プラン]**からいつでもワンクリック。"
-    }
-  ]
-
-  return (
-    <section className="relative">
-      <div className="mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-semibold">よくある質問</h2>
-        </div>
-
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <details key={index} className="glass-card p-6">
-              <summary className="font-medium cursor-pointer hover:text-indigo-600 transition-colors">
-                {faq.q}
-              </summary>
-              <p className="mt-3 text-sm text-gray-600 leading-relaxed">
-                {faq.a}
-              </p>
-            </details>
-          ))}
-        </div>
-      </div>
-    </section>
   )
 }
 
 // =========================================
 // Shared Components
 // =========================================
-function StyleTokens() {
-  return (
-    <style>{`
-      :root { --indigo: ${COLORS.indigo}; --blue: ${COLORS.blue}; --magenta: ${COLORS.magenta}; --bg: ${COLORS.bg}; }
-      .glass-card { background: radial-gradient(120% 140% at 10% 10%, rgba(255,255,255,.7), rgba(255,255,255,.35) 45%, rgba(255,255,255,.22) 100%); border: 1px solid rgba(255,255,255,.5); backdrop-filter: saturate(160%) blur(14px); border-radius: 12px; box-shadow: 0 4px 18px rgba(99,102,241,.08); }
-      .btn-primary { background: linear-gradient(135deg, var(--indigo), var(--blue) 50%, var(--magenta)); color: white; border-radius: 12px; padding: 10px 16px; font-weight: 600; letter-spacing: .01em; box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 6px 18px rgba(99,102,241,.25);}  
-      .btn-primary:hover { filter: brightness(1.02); transform: translateY(-1px) rotate(.5deg); transition: transform .15s ease, filter .2s ease; }
-      .aurora { position: absolute; inset: -10% -10% auto -10%; height: 60vh; pointer-events: none; filter: blur(20px) saturate(140%); opacity: .6; }
-      .aurora::before, .aurora::after { content: ''; position: absolute; inset: 0; background: 
-        radial-gradient(60% 80% at 20% 30%, var(--indigo), transparent 60%),
-        radial-gradient(60% 80% at 80% 20%, var(--blue), transparent 60%),
-        radial-gradient(70% 80% at 50% 80%, var(--magenta), transparent 65%);
-        mix-blend-mode: screen; animation: auraMove 16s linear infinite alternate;
-      }
-      .aurora::after { filter: blur(30px); opacity: .6; animation-duration: 22s; }
-      @keyframes auraMove { from { transform: translateY(-8%) translateX(-4%); } to { transform: translateY(6%) translateX(3%); } }
-      @media (prefers-reduced-motion: reduce) { .aurora::before, .aurora::after { animation: none !important; } }
-    `}</style>
-  )
-}
+
 
 function AuroraBackground() {
   return (
-    <div aria-hidden className="fixed inset-0 -z-10">
-      <div className="absolute inset-0 bg-[radial-gradient(100%_100%_at_0%_0%,#fff,rgba(255,255,255,.85)_40%,rgba(255,255,255,.75)_60%,rgba(245,246,250,.9))]" />
-      <div className="aurora" />
+    <div className="fixed inset-0 -z-10 overflow-hidden">
+      <div className="absolute -top-40 -right-32 w-96 h-96 rounded-full opacity-35 blur-3xl" 
+           style={{ background: `linear-gradient(135deg, ${COLORS.indigo} 0%, ${COLORS.blue} 100%)` }} />
+      <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-30 blur-3xl" 
+           style={{ background: `linear-gradient(135deg, ${COLORS.blue} 0%, ${COLORS.magenta} 100%)` }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl"
+           style={{ background: `linear-gradient(135deg, ${COLORS.magenta} 0%, ${COLORS.indigo} 100%)` }} />
     </div>
   )
 }
 
-function HeroVisual() {
+// =========================================
+// Icons
+// =========================================
+
+function SparklesIcon({ className }: { className?: string }) {
   return (
-    <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute -top-20 -right-20 w-[420px] h-[420px] rounded-full bg-[var(--indigo)]/20 blur-3xl" />
-      <div className="absolute -bottom-24 -left-20 w-[380px] h-[380px] rounded-full bg-[var(--magenta)]/20 blur-3xl" />
-    </div>
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+    </svg>
   )
 }
 
-function Header() {
+function MusicIcon({ className }: { className?: string }) {
   return (
-    <header className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/40 bg-white/70 border-b border-white/50">
-      <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Logo />
-          <span className="sr-only">MIXAI - 歌い手向けオンラインMIXサービス</span>
-        </div>
-        
-        <nav className="hidden lg:flex items-center gap-6">
-          <HeaderLink href="/">ホーム</HeaderLink>
-          <HeaderLink href="/pricing" active>料金</HeaderLink>
-          <HeaderLink href="/how-it-works">使い方</HeaderLink>
-          <HeaderLink href="/features">特長</HeaderLink>
-          <HeaderLink href="/help">よくある質問</HeaderLink>
-        </nav>
-
-        <div className="flex items-center gap-3">
-          <HeaderLink href="/auth/login">ログイン</HeaderLink>
-          <button className="btn-primary">無料で試す</button>
-        </div>
-      </div>
-    </header>
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+    </svg>
   )
 }
 
-function Logo() {
+function StarIcon({ className }: { className?: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-6 w-6 rounded-xl bg-gradient-to-br from-[var(--indigo)] via-[var(--blue)] to-[var(--magenta)] shadow-sm" />
-      <span className="font-semibold tracking-tight">MIXAI</span>
-    </div>
-  )
-}
-
-function HeaderLink({ href, children, active = false }: { href: string; children: React.ReactNode; active?: boolean }) {
-  return (
-    <a 
-      href={href} 
-      className={`text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded px-1 py-1 ${
-        active ? 'text-indigo-600 font-medium' : 'text-gray-700 hover:text-gray-900'
-      }`}
-    >
-      {children}
-    </a>
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5Z" />
+    </svg>
   )
 }
 
 function CheckIcon({ className }: { className?: string }) {
   return (
-    <svg className={clsx('w-4 h-4', className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <polyline points="20 6 9 17 4 12" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
     </svg>
   )
 }
 
-function Footer() {
+function XIcon({ className }: { className?: string }) {
   return (
-    <footer className="border-t border-white/50 bg-white/70 backdrop-blur">
-      <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-8 text-xs text-gray-700">
-        <div className="text-center">
-          <p>© 2024 MIXAI. All rights reserved.</p>
-        </div>
-      </div>
-    </footer>
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+    </svg>
   )
 }
