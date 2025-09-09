@@ -26,7 +26,7 @@ export default function AnnouncementsAdmin() {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    category: 'general' as const,
+    category: 'general' as 'general' | 'update' | 'maintenance' | 'important',
     priority: 0,
     is_active: true,
     expires_at: ''
