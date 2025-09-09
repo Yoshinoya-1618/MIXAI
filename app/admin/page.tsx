@@ -39,7 +39,7 @@ export default async function AdminDashboard() {
     .gte('created_at', today.toISOString())
     .not('duration_ms', 'is', null)
 
-  const avgProcessingTime = processingTimes?.length > 0
+  const avgProcessingTime = processingTimes && processingTimes.length > 0
     ? Math.round(processingTimes.reduce((sum, j) => sum + j.duration_ms, 0) / processingTimes.length / 1000)
     : 0
 

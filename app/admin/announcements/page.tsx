@@ -23,10 +23,17 @@ export default function AnnouncementsAdmin() {
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string
+    content: string
+    category: 'general' | 'update' | 'maintenance' | 'important'
+    priority: number
+    is_active: boolean
+    expires_at: string
+  }>({
     title: '',
     content: '',
-    category: 'general' as const,
+    category: 'general',
     priority: 0,
     is_active: true,
     expires_at: ''
